@@ -12,4 +12,5 @@ const documentSchema = new mongoose.Schema({
   completedAt: Date
 });
 
-module.exports = mongoose.model('Document', documentSchema);
+// Tránh khai báo lại model nếu đã tồn tại
+module.exports = mongoose.models.Document || mongoose.model('Document', documentSchema);

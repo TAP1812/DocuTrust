@@ -39,7 +39,8 @@ router.post('/login', async (req, res) => {
       sameSite: 'lax',
       maxAge: 2 * 60 * 60 * 1000
     });
-    res.json({ message: 'Login successful', user: { id: user._id, username: user.username, publicKey: user.publicKey } });
+    // Trả về JSON, frontend sẽ tự chuyển hướng sang dashboard sau khi đăng nhập thành công
+    res.json({ message: 'Login successful', user: { id: user._id, username: user.username, publicKey: user.publicKey }, redirect: '/dashboard' });
   } catch (e) {
     res.status(500).json({ message: 'Server error' });
   }

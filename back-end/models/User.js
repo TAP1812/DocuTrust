@@ -8,4 +8,5 @@ const userSchema = new mongoose.Schema({
   publicKey: { type: String, required: true }
 });
 
-module.exports = mongoose.model('User', userSchema);
+// Tránh khai báo lại model nếu đã tồn tại
+module.exports = mongoose.models.User || mongoose.model('User', userSchema);

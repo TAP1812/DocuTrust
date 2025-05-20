@@ -26,7 +26,12 @@ function Login() {
       if (res.ok) {
         localStorage.setItem('token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
-        navigate('/documents');
+        // Nếu backend trả về redirect, chuyển hướng sang dashboard
+        if (data.redirect) {
+          navigate(data.redirect);
+        } else {
+          navigate('/dashboard');
+        }
       } else {
         setError(data.message || 'Login failed');
       }
