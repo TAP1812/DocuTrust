@@ -51,17 +51,32 @@ const Document = mongoose.model('Document', documentSchema);
 
 const JWT_SECRET = 'docutrust_secret_key'; // Đổi thành biến môi trường khi deploy
 
-// Middleware xác thực JWT
-function auth(req, res, next) {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-  if (!token) return res.status(401).json({ message: 'No token provided' });
+// Middleware xác thực JWT chỉ cho các route API
+app.use((req, res, next) => {
+  // Chỉ áp dụng cho các route bắt đầu bằng /api
+  if (!req.path.startsWith('/api')) {
+    return next();
+  }
+  // Bỏ qua các route public như /api/login, /api/register
+  if (
+    req.path.startsWith('/api/login') ||
+    req.path.startsWith('/api/register')
+  ) {
+    return next();
+  }
+  // Lấy token từ cookie hoặc header
+  const token = req.cookies.token || (req.headers['authorization'] && req.headers['authorization'].split(' ')[1]);
+  if (!token) {
+    return res.status(401).json({ message: 'No token provided' });
+  }
   jwt.verify(token, JWT_SECRET, (err, user) => {
-    if (err) return res.status(403).json({ message: 'Invalid token' });
+    if (err) {
+      return res.status(403).json({ message: 'Invalid token' });
+    }
     req.user = user;
     next();
   });
-}
+});
 
 // File to store documents
 function getDocuments() {
@@ -81,6 +96,16 @@ const dashboardRoutes = require('./routes/dashboard');
 app.use('/api', authRoutes);
 app.use('/api/documents', documentRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+
+// Middleware xử lý các request không khớp route hoặc không có JWT
+app.use((req, res) => {
+  // Nếu là API request, trả về 404
+  if (req.path.startsWith('/api')) {
+    return res.status(404).json({ message: 'API route not found' });
+  }
+  // Với mọi request khác, redirect về trang login của frontend
+  res.redirect('http://localhost:3000/login');
+});
 
 app.listen(PORT, () => {
   console.log(`DocuTrust backend running on port ${PORT}`);
