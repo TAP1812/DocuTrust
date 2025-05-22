@@ -64,6 +64,7 @@ const Dashboard = () => {
               </Avatar>
               <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleClose}>
                 <MenuItem disabled>{user.fullName || user.username}</MenuItem>
+                <MenuItem onClick={()=>navigate('/profile')}>Thông tin cá nhân</MenuItem>
                 <MenuItem onClick={handleLogout}><LogoutIcon fontSize="small" sx={{ mr: 1 }} />Đăng xuất</MenuItem>
               </Menu>
             </>

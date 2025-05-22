@@ -7,6 +7,7 @@ import CreateDocument from './pages/CreateDocument';
 import SignDocument from './pages/SignDocument';
 import VerifyDocument from './pages/VerifyDocument';
 import Dashboard from './pages/Dashboard';
+import Profile from './pages/Profile';
 
 function App() {
   return (
@@ -19,6 +20,7 @@ function App() {
         <Route path="/documents/:id/sign" element={<SignDocument />} />
         <Route path="/documents/:id/verify" element={<VerifyDocument />} />
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/profile" element={<Profile />} />
         <Route path="*" element={<Navigate to="/login" />} />
       </Routes>
     </Router>
