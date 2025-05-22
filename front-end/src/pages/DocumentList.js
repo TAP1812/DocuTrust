@@ -14,7 +14,7 @@ function DocumentList() {
     fetch(`http://localhost:3001/api/documents?userId=${user.id}`)
       .then(res => res.json())
       .then(data => setDocuments(data.documents || []));
-  }, []);
+  }, [navigate]);
 
   return (
     <div className="container">

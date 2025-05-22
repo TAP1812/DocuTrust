@@ -50,15 +50,31 @@ function saveDocuments(docs) {
 
 const router = express.Router();
 
-// Tạo tài liệu (có thể upload file)
+// Tạo tài liệu (có thể upload file, nhiều người ký, có role)
 router.post('/', upload.single('file'), (req, res) => {
   const { title, content, creatorId } = req.body;
   let signers = req.body.signers;
+  // Hỗ trợ nhận signers là JSON string hoặc array
   if (typeof signers === 'string') {
     try { signers = JSON.parse(signers); } catch { signers = [signers]; }
   }
-  if (!title || !content || !creatorId || !Array.isArray(signers) || signers.length === 0) {
-    return res.status(400).json({ message: 'Missing fields' });
+  // Chuyển đổi từ email sang userId (nếu có email, gán vào userId)
+  signers = signers.map(s => {
+    if (s.email && !s.userId) return { userId: s.email, role: s.role };
+    return s;
+  });
+  // Đảm bảo signers là mảng các object { userId, role }
+  if (!Array.isArray(signers) || signers.length === 0) {
+    return res.status(400).json({ message: 'Thiếu danh sách người ký' });
+  }
+  // Kiểm tra từng signer phải có userId và role
+  for (const s of signers) {
+    if (!s.userId || !s.role) {
+      return res.status(400).json({ message: 'Mỗi người ký phải có userId và role' });
+    }
+  }
+  if (!title || !content || !creatorId) {
+    return res.status(400).json({ message: 'Thiếu thông tin tài liệu' });
   }
   const hash = crypto.createHash('sha256').update(content).digest('hex');
   const doc = {
@@ -67,7 +83,7 @@ router.post('/', upload.single('file'), (req, res) => {
     content,
     hash,
     creatorId,
-    signers,
+    signers, // [{ userId, role }]
     signatures: [],
     status: 'pending',
     createdAt: new Date().toISOString(),
@@ -85,7 +101,7 @@ router.get('/', (req, res) => {
   const { userId } = req.query;
   let docs = getDocuments();
   if (userId) {
-    docs = docs.filter(doc => doc.creatorId === userId || doc.signers.includes(userId));
+    docs = docs.filter(doc => doc.creatorId === userId || doc.signers.some(s => s.userId === userId));
   }
   res.json({ documents: docs });
 });
@@ -99,7 +115,7 @@ router.get('/:id', (req, res) => {
   res.json({ document: doc });
 });
 
-// Ký tài liệu
+// Ký tài liệu (chỉ cho phép user có role 'signer')
 router.post('/:id/sign', (req, res) => {
   const { id } = req.params;
   const { userId, signature, publicKey } = req.body;
@@ -109,14 +125,17 @@ router.post('/:id/sign', (req, res) => {
   let docs = getDocuments();
   const doc = docs.find(d => d.id === id);
   if (!doc) return res.status(404).json({ message: 'Document not found' });
-  if (!doc.signers.includes(userId)) {
+  const signer = doc.signers.find(s => s.userId === userId && s.role === 'signer');
+  if (!signer) {
     return res.status(403).json({ message: 'User is not allowed to sign this document' });
   }
   if (doc.signatures.find(s => s.userId === userId)) {
     return res.status(409).json({ message: 'User already signed' });
   }
   doc.signatures.push({ userId, signature, publicKey, signedAt: new Date().toISOString() });
-  if (doc.signatures.length === doc.signers.length) {
+  // Đánh dấu hoàn thành nếu tất cả signer đã ký
+  const allSigned = doc.signers.filter(s => s.role === 'signer').every(s => doc.signatures.find(sig => sig.userId === s.userId));
+  if (allSigned) {
     doc.status = 'completed';
     doc.completedAt = new Date().toISOString();
   }
