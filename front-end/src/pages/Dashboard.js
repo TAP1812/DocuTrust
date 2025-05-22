@@ -89,7 +89,8 @@ const Dashboard = () => {
                       primary={<b>{doc.title}</b>}
                       secondary={<>
                         Trạng thái: <b style={{ color: doc.status === 'completed' ? '#43a047' : '#1976d2' }}>{doc.status}</b><br/>
-                        Ngày tạo: {new Date(doc.createdAt).toLocaleString()}
+                        Ngày tạo: {new Date(doc.createdAt).toLocaleString()}<br/>
+                        Người ký: {doc.signers && doc.signers.length > 0 ? doc.signers.map(s => s.name).join(', ') : 'Không có'}
                       </>}
                     />
                   </ListItem>
@@ -113,9 +114,11 @@ const Dashboard = () => {
                       primary={<b>{doc.title}</b>}
                       secondary={<>
                         Người tạo: <span style={{ color: '#1976d2' }}>{doc.creatorId}</span><br/>
-                        Trạng thái: <b style={{ color: doc.status === 'completed' ? '#43a047' : '#ff9800' }}>{doc.status}</b>
+                        Trạng thái: <b style={{ color: doc.status === 'completed' ? '#43a047' : '#ff9800' }}>{doc.status}</b><br/>
+                        Người ký: {doc.signers && doc.signers.length > 0 ? doc.signers.map(s => s.name).join(', ') : 'Không có'}
                       </>}
                     />
+                    <Button variant="outlined" color="primary" size="small" sx={{ ml: 2 }} onClick={()=>navigate(`/documents/${doc.id}/sign`)}>Ký</Button>
                   </ListItem>
                 ))}
               </List>
@@ -136,9 +139,11 @@ const Dashboard = () => {
                     <ListItemText
                       primary={<b>{doc.title}</b>}
                       secondary={<>
-                        Trạng thái: <b style={{ color: doc.status === 'completed' ? '#43a047' : '#43a047' }}>{doc.status}</b>
+                        Trạng thái: <b style={{ color: doc.status === 'completed' ? '#43a047' : '#43a047' }}>{doc.status}</b><br/>
+                        Người ký: {doc.signers && doc.signers.length > 0 ? doc.signers.map(s => s.name).join(', ') : 'Không có'}
                       </>}
                     />
+                    <Button variant="outlined" color="secondary" size="small" sx={{ ml: 2 }} onClick={()=>navigate(`/documents/${doc.id}/verify`)}>Xác minh</Button>
                   </ListItem>
                 ))}
               </List>
