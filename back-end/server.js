@@ -13,12 +13,13 @@ const cookieParser = require('cookie-parser');
 const app = express();
 const PORT = 3001;
 
-app.use(cors());
-app.use(bodyParser.json());
 app.use(cors({
-  origin: 'http://localhost:3000', // domain FE
-  credentials: true
+  origin: 'http://localhost:3000',
+  credentials: true,
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
 }));
+app.use(bodyParser.json());
 app.use(cookieParser());
 
 // Kết nối MongoDB

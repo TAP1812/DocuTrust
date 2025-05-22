@@ -4,14 +4,17 @@ import { useNavigate } from 'react-router-dom';
 function DocumentList() {
   const [documents, setDocuments] = useState([]);
   const navigate = useNavigate();
-  const user = JSON.parse(localStorage.getItem('user'));
 
   useEffect(() => {
-    if (!user) return navigate('/login');
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (!user) {
+      navigate('/login');
+      return;
+    }
     fetch(`http://localhost:3001/api/documents?userId=${user.id}`)
       .then(res => res.json())
       .then(data => setDocuments(data.documents || []));
-  }, [user, navigate]);
+  }, []);
 
   return (
     <div className="container">

@@ -20,7 +20,8 @@ function Login() {
       const res = await fetch('http://localhost:3001/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
+        body: JSON.stringify({ username, password }),
+        credentials: 'include' // Để gửi cookie
       });
       const data = await res.json();
       if (res.ok) {
