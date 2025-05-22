@@ -2,6 +2,42 @@ const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const crypto = require('crypto');
 const fs = require('fs');
+const multer = require('multer');
+const path = require('path');
+
+// Tạo thư mục uploads nếu chưa có
+const uploadDir = path.join(__dirname, '../uploads');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir);
+}
+
+// Cấu hình multer
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, uploadDir);
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + '-' + file.originalname);
+  }
+});
+
+// Chỉ cho phép upload file PDF, DOC, DOCX
+const allowedMimeTypes = [
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+];
+const upload = multer({ 
+  storage: storage,
+  fileFilter: (req, file, cb) => {
+    if (allowedMimeTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Chỉ cho phép upload file PDF, DOC, DOCX'));
+    }
+  }
+});
 
 // File to store documents
 function getDocuments() {
@@ -14,9 +50,13 @@ function saveDocuments(docs) {
 
 const router = express.Router();
 
-// Tạo tài liệu
-router.post('/', (req, res) => {
-  const { title, content, creatorId, signers } = req.body;
+// Tạo tài liệu (có thể upload file)
+router.post('/', upload.single('file'), (req, res) => {
+  const { title, content, creatorId } = req.body;
+  let signers = req.body.signers;
+  if (typeof signers === 'string') {
+    try { signers = JSON.parse(signers); } catch { signers = [signers]; }
+  }
   if (!title || !content || !creatorId || !Array.isArray(signers) || signers.length === 0) {
     return res.status(400).json({ message: 'Missing fields' });
   }
@@ -30,7 +70,9 @@ router.post('/', (req, res) => {
     signers,
     signatures: [],
     status: 'pending',
-    createdAt: new Date().toISOString()
+    createdAt: new Date().toISOString(),
+    filePath: req.file ? path.relative(process.cwd(), req.file.path) : null,
+    fileName: req.file ? req.file.originalname : null
   };
   let docs = getDocuments();
   docs.push(doc);
