@@ -5,11 +5,21 @@ const documentSchema = new mongoose.Schema({
   content: String,
   hash: String,
   creatorId: mongoose.Schema.Types.ObjectId,
-  signers: [mongoose.Schema.Types.ObjectId],
-  signatures: [{ userId: mongoose.Schema.Types.ObjectId, signature: String, publicKey: String, signedAt: Date }],
+  signers: [{
+    userId: String,  // Email hoặc ObjectId string
+    role: String     // 'signer' hoặc 'viewer'
+  }],
+  signatures: [{ 
+    userId: String,  // Khớp với signers.userId
+    signature: String, 
+    publicKey: String, 
+    signedAt: Date 
+  }],
   status: String,
   createdAt: Date,
-  completedAt: Date
+  completedAt: Date,
+  filePath: String,
+  fileName: String
 });
 
 // Tránh khai báo lại model nếu đã tồn tại

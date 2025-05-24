@@ -2,12 +2,8 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
-const fs = require('fs');
-const { v4: uuidv4 } = require('uuid');
-const crypto = require('crypto');
 const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
-const bcrypt = require('bcryptjs');
 const cookieParser = require('cookie-parser');
 
 const app = express();
@@ -77,15 +73,6 @@ app.use((req, res, next) => {
     next();
   });
 });
-
-// File to store documents
-function getDocuments() {
-  if (!fs.existsSync('documents.json')) return [];
-  return JSON.parse(fs.readFileSync('documents.json'));
-}
-function saveDocuments(docs) {
-  fs.writeFileSync('documents.json', JSON.stringify(docs, null, 2));
-}
 
 // Import routes
 const authRoutes = require('./routes/auth');

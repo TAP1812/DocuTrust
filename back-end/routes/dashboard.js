@@ -1,54 +1,62 @@
 const express = require('express');
 const auth = require('../middleware/auth');
-const fs = require('fs');
-const path = require('path');
-
-function getDocuments() {
-  if (!fs.existsSync('documents.json')) return [];
-  return JSON.parse(fs.readFileSync('documents.json'));
-}
-
-// Đọc users từ file users.json
-function getUsers() {
-  const usersPath = path.join(__dirname, '../users.json');
-  if (!fs.existsSync(usersPath)) return [];
-  return JSON.parse(fs.readFileSync(usersPath));
-}
+const Document = require('../models/Document');
+const User = require('../models/User');
 
 const router = express.Router();
 
 // Dashboard - trả về thông tin tổng quan cho user, kèm tên người ký
-router.get('/', auth, (req, res) => {
-  const userId = req.user.id;
-  const userEmail = req.user.email;
-  if (!userId) return res.status(400).json({ message: 'Missing userId' });
-  const docs = getDocuments();
-  const users = getUsers();
-  // Helper: lấy tên từ userId/email
-  const getName = (uid, email) => {
-    const u = users.find(u => u.id === uid || u.email === email);
-    return u ? (u.fullName || u.username || u.email || u.id) : (email || uid);
-  };
-  // Gắn tên cho từng signer
-  const attachSignerNames = doc => ({
-    ...doc,
-    signers: Array.isArray(doc.signers) ? doc.signers.map(s => ({
-      ...s,
-      name: getName(s.userId, s.email)
-    })) : []
-  });
-  const createdDocs = docs.filter(doc => doc.creatorId === userId).map(attachSignerNames);
-  const needToSign = docs.filter(doc =>
-    Array.isArray(doc.signers) &&
-    doc.signers.some(s => (s.userId === userId || s.email === userEmail) && s.role === 'signer') &&
-    !doc.signatures.find(s => s.userId === userId)
-  ).map(attachSignerNames);
-  const signedDocs = docs.filter(doc => doc.signatures.find(s => s.userId === userId)).map(attachSignerNames);
-  res.json({
-    createdDocuments: createdDocs,
-    needToSignDocuments: needToSign,
-    signedDocuments: signedDocs
-  });
+router.get('/', auth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const userEmail = req.user.email;
+    if (!userId) return res.status(400).json({ message: 'Missing userId' });
+
+    // Helper: lấy tên từ userId/email
+    const getName = async (uid, email) => {
+      const user = await User.findOne({ $or: [{ _id: uid }, { email: email }] });
+      return user ? (user.fullName || user.username || user.email || user._id) : (email || uid);
+    };
+
+    // Gắn tên cho từng signer
+    const attachSignerNames = async (doc) => {
+      const docObj = doc.toObject();
+      if (Array.isArray(docObj.signers)) {
+        docObj.signers = await Promise.all(docObj.signers.map(async s => ({
+          ...s,
+          name: await getName(s.userId, s.email)
+        })));
+      }
+      return docObj;
+    };
+
+    // Lấy tài liệu và người ký từ MongoDB
+    const [createdDocs, needToSign, signedDocs] = await Promise.all([
+      // Tài liệu đã tạo
+      Document.find({ creatorId: userId }).then(docs => Promise.all(docs.map(attachSignerNames))),
+      
+      // Tài liệu cần ký
+      Document.find({
+        'signers.userId': userId,
+        'signers.role': 'signer',
+        'signatures.userId': { $ne: userId }
+      }).then(docs => Promise.all(docs.map(attachSignerNames))),
+      
+      // Tài liệu đã ký
+      Document.find({
+        'signatures.userId': userId
+      }).then(docs => Promise.all(docs.map(attachSignerNames)))
+    ]);
+
+    res.json({
+      createdDocuments: createdDocs,
+      needToSignDocuments: needToSign,
+      signedDocuments: signedDocs
+    });
+  } catch (error) {
+    console.error('Dashboard error:', error);
+    res.status(500).json({ message: 'Không thể tải dữ liệu dashboard' });
+  }
 });
 
 module.exports = router;

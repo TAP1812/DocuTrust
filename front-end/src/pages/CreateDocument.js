@@ -19,12 +19,13 @@ function CreateDocument() {
 
   const addSigner = () => setSignerList([...signerList, { email: '', role: 'signer' }]);
   const removeSigner = idx => setSignerList(signerList.filter((_, i) => i !== idx));
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(''); setSuccess('');
     try {
-      const formData = new FormData();
+      const formData = new FormData();      // Log để debug
+      console.log('Creating document with:', { title, content, creatorId: user.id, signers: signerList });
+      
       formData.append('title', title);
       formData.append('content', content);
       formData.append('creatorId', user.id);
@@ -32,7 +33,8 @@ function CreateDocument() {
       if (file) formData.append('file', file);
       const res = await fetch('http://localhost:3001/api/documents', {
         method: 'POST',
-        body: formData
+        body: formData,
+        credentials: 'include'
       });
       const data = await res.json();
       if (res.ok) {
