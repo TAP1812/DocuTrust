@@ -31,20 +31,6 @@ const userSchema = new mongoose.Schema({
 });
 const User = mongoose.model('User', userSchema);
 
-// Document Schema
-const documentSchema = new mongoose.Schema({
-  title: String,
-  content: String,
-  hash: String,
-  creatorId: mongoose.Schema.Types.ObjectId,
-  signers: [mongoose.Schema.Types.ObjectId],
-  signatures: [{ userId: mongoose.Schema.Types.ObjectId, signature: String, publicKey: String, signedAt: Date }],
-  status: String,
-  createdAt: Date,
-  completedAt: Date
-});
-const Document = mongoose.model('Document', documentSchema);
-
 const JWT_SECRET = 'docutrust_secret_key'; // Đổi thành biến môi trường khi deploy
 
 // Middleware xác thực JWT chỉ cho các route API

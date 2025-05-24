@@ -41,36 +41,64 @@ const upload = multer({
 
 const router = express.Router();
 const Document = require('../models/Document');
+const User = require('../models/User');
 
 // Tạo tài liệu (có thể upload file, nhiều người ký, có role)
 router.post('/', upload.single('file'), async (req, res) => {
+  var formattedSigners = null;
   try {
-    console.log('Received document request:', req.body);
+    //console.log('Received document request:', req.body);
     const { title, content, creatorId } = req.body;
     let signers = req.body.signers;
     
     // Validate required fields
     if (!title || !content || !creatorId) {
-      console.log('Missing required fields:', { title, content, creatorId });
+      //console.log('Missing required fields:', { title, content, creatorId });
       return res.status(400).json({ message: 'Thiếu thông tin tài liệu' });
+    }    // Parse signers từ JSON string nếu cần
+    try {
+      if (typeof signers === 'string') {
+        signers = JSON.parse(signers);
+      }
+      if (!Array.isArray(signers)) {
+        throw new Error('Signers must be an array');
+      }
+      // Validate từng phần tử
+      for (const s of signers) {
+        if (!s.email || typeof s.email !== 'string') {
+          throw new Error('Each signer must have a valid email');
+        }
+      }
+      // Tìm user theo email
+      const userPromises = signers.map(s => User.findOne({ email: s.email }));
+      const users = await Promise.all(userPromises);
+      // Đảm bảo userId là ObjectId thực sự (convert nếu là string)
+      formattedSigners = signers.map((s, idx) => {
+        const user = users[idx];
+        if (!user) {
+          throw new Error(`User with email ${s.email} not found`);
+        }
+        // Nếu user._id là string hoặc object lạ, luôn ép về ObjectId bằng new mongoose.Types.ObjectId
+        let userId = user._id;
+        if (!(userId instanceof mongoose.Types.ObjectId)) {
+          userId = new mongoose.Types.ObjectId(userId);
+        }
+        return {
+          userId,
+          role: s.role === 'viewer' ? 'viewer' : 'signer'
+        };
+      });
+    } catch (e) {
+      console.error('Error processing signers:', e);
+      return res.status(400).json({ message: e.message || 'Invalid signers format' });
     }
-    
-    // Hỗ trợ nhận signers là JSON string hoặc array
-    if (typeof signers === 'string') {
-      try { signers = JSON.parse(signers); } catch { signers = [signers]; }
-    }    // Chuyển đổi signers từ email sang định dạng phù hợp
-    signers = signers.map(s => ({
-      userId: s.email || s.userId,  // Dùng email làm userId
-      role: s.role || 'signer'      // Mặc định là signer nếu không có role
-    }));
 
-    // Validate input
-    if (!Array.isArray(signers) || signers.length === 0) {
+    // Validate signers
+    if (!formattedSigners || formattedSigners.length === 0) {
       return res.status(400).json({ message: 'Thiếu danh sách người ký' });
     }
 
-    // Validate mỗi signer
-    for (const s of signers) {
+    for (const s of formattedSigners) {
       if (!s.userId) {
         return res.status(400).json({ message: 'Mỗi người ký phải có userId hoặc email' });
       }
@@ -79,27 +107,33 @@ router.post('/', upload.single('file'), async (req, res) => {
       }
     }
 
-    // Convert creatorId to ObjectId if it's not already
+    // Convert creatorId to ObjectId
     const objectId = mongoose.Types.ObjectId.isValid(creatorId) 
       ? creatorId 
       : mongoose.Types.ObjectId(creatorId);
 
-    // Create new document
+    // Tạo hash từ nội dung
     const hash = crypto.createHash('sha256').update(content).digest('hex');
-    const doc = new Document({
+    //console.log('Type of signers:', typeof formattedSigners);
+    // Tạo document mới
+    const documentData = {
       title,
       content,
       hash,
       creatorId: objectId,
-      signers,
+      signers: formattedSigners,
       signatures: [],
       status: 'pending',
       createdAt: new Date(),
       filePath: req.file ? path.relative(process.cwd(), req.file.path) : null,
       fileName: req.file ? req.file.originalname : null
-    });
+    };
 
+    //console.log('Creating document with data:', documentData);
+
+    const doc = new Document(documentData);
     await doc.save();
+
     res.json({ message: 'Document created', document: doc });
   } catch (error) {
     console.error('Create document error:', error);
@@ -109,18 +143,29 @@ router.post('/', upload.single('file'), async (req, res) => {
 
 // Lấy danh sách tài liệu
 router.get('/', async (req, res) => {
-  try {
-    const { userId } = req.query;
+  try {    const { userId } = req.query;
     let query = {};
+    
     if (userId) {
+      const userObjectId = mongoose.Types.ObjectId.isValid(userId)
+        ? mongoose.Types.ObjectId(userId)
+        : null;
+
+      if (!userObjectId) {
+        return res.status(400).json({ message: 'Invalid user ID format' });
+      }
+
       query = {
         $or: [
-          { creatorId: userId },
-          { 'signers.userId': userId }
+          { creatorId: userObjectId },
+          { 'signers.userId': userObjectId }
         ]
       };
     }
-    const docs = await Document.find(query);
+    
+    const docs = await Document.find(query)
+      .populate('creatorId', 'email fullName')
+      .populate('signers.userId', 'email fullName');
     res.json({ documents: docs });
   } catch (error) {
     console.error('Get documents error:', error);
@@ -151,12 +196,24 @@ router.post('/:id/sign', async (req, res) => {
     const doc = await Document.findById(req.params.id);
     if (!doc) return res.status(404).json({ message: 'Document not found' });
 
-    const signer = doc.signers.find(s => s.userId === userId && s.role === 'signer');
+  // Convert userId to ObjectId if it's not already
+    const userObjectId = mongoose.Types.ObjectId.isValid(userId) 
+      ? mongoose.Types.ObjectId(userId)
+      : null;
+      
+    if (!userObjectId) {
+      return res.status(400).json({ message: 'Invalid user ID format' });
+    }
+
+    const signer = doc.signers.find(s => 
+      s.userId.equals(userObjectId) && s.role === 'signer'
+    );
+    
     if (!signer) {
       return res.status(403).json({ message: 'User is not allowed to sign this document' });
     }
 
-    if (doc.signatures.find(s => s.userId === userId)) {
+    if (doc.signatures.find(s => s.userId.equals(userObjectId))) {
       return res.status(409).json({ message: 'User already signed' });
     }
 
@@ -184,18 +241,21 @@ router.post('/:id/sign', async (req, res) => {
 router.post('/:id/verify', async (req, res) => {
   try {
     const doc = await Document.findById(req.params.id);
-    if (!doc) return res.status(404).json({ message: 'Document not found' });
-
+    if (!doc) return res.status(404).json({ message: 'Document not found' });    // Populate user information for each signature
+    await doc.populate('signatures.userId');
+    
     const results = doc.signatures.map(sig => {
       try {
         return {
-          userId: sig.userId,
+          userId: sig.userId._id, // get the ObjectId
+          email: sig.userId.email, // include email for display
           valid: !!sig.signature,
           signedAt: sig.signedAt
         };
       } catch {
         return {
-          userId: sig.userId,
+          userId: sig.userId._id,
+          email: 'Unknown',
           valid: false,
           signedAt: sig.signedAt
         };

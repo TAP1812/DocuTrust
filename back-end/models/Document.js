@@ -1,14 +1,23 @@
 const mongoose = require('mongoose');
 
+const signerSchema = new mongoose.Schema({
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  role: {
+    type: String,
+    enum: ['signer', 'viewer'],
+    default: 'signer'
+  }
+}, { _id: false });
+
 const documentSchema = new mongoose.Schema({
   title: String,
   content: String,
   hash: String,
   creatorId: mongoose.Schema.Types.ObjectId,
-  signers: [{
-    userId: String,  // Email hoặc ObjectId string
-    role: String     // 'signer' hoặc 'viewer'
-  }],
+  signers: [signerSchema],
   signatures: [{ 
     userId: String,  // Khớp với signers.userId
     signature: String, 
