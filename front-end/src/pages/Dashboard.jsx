@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Container,
@@ -29,9 +29,10 @@ import {
   Logout as LogoutIcon,
   Settings as SettingsIcon,
   Notifications as NotificationIcon,
+  VerifiedUser,
+  Draw,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
 
 const Dashboard = () => {
   const theme = useTheme();
@@ -70,17 +71,62 @@ const Dashboard = () => {
 
   useEffect(() => {
     const fetchDashboardData = async () => {
+      setLoading(true);
       try {
-        const response = await axios.get('http://localhost:3001/api/dashboard', { withCredentials: true });
-        setData(response.data);
-        setLoading(false);
+        const response = await fetch('http://localhost:3001/api/dashboard', {
+          credentials: 'include'
+        });
+        if (response.ok) {
+          const result = await response.json();
+          setData(result);
+        } else {
+          setError('Không thể tải dữ liệu dashboard từ server.');
+        }
       } catch (err) {
-        setError('Không thể tải dữ liệu dashboard');
-        setLoading(false);
+        setError('Lỗi mạng hoặc không thể kết nối tới server.');
+        console.error('Fetch dashboard data error:', err);
       }
+      setLoading(false);
     };
     fetchDashboardData();
   }, []);
+
+  // Updated Quick Actions array - removed Sign and Verify
+  const quickActions = [
+    { 
+      icon: <UploadIcon />, 
+      text: 'Tải lên tài liệu', 
+      onClick: () => { 
+        console.log('Clicked: Tải lên tài liệu - Navigating to /documents/upload');
+        navigate('/documents/upload');
+      }
+    },
+    { 
+      icon: <PendingIcon />, 
+      text: 'Tài liệu chờ ký', 
+      onClick: () => { 
+        console.log('Clicked: Tài liệu chờ ký - Navigating to /documents?status=pending');
+        navigate('/documents?status=pending');
+      }
+    },
+    { 
+      icon: <SignedIcon />, 
+      text: 'Tài liệu đã ký', 
+      onClick: () => { 
+        console.log('Clicked: Tài liệu đã ký - Navigating to /documents?status=signed');
+        navigate('/documents?status=signed');
+      }
+    },
+    { 
+      icon: <DocumentIcon />, 
+      text: 'Tất cả tài liệu', 
+      onClick: () => { 
+        console.log('Clicked: Tất cả tài liệu - Navigating to /documents');
+        navigate('/documents');
+      }
+    }
+    // Removed Verify and Sign actions from here
+  ];
 
   if (loading) {
     return (
@@ -165,16 +211,16 @@ const Dashboard = () => {
               }
             }}
           >
-            <MenuItem onClick={() => { handleProfileMenuClose(); navigate('/profile'); }}>
+            <MenuItem onClick={() => { console.log('Clicked: Profile Menu - Thông tin cá nhân'); handleProfileMenuClose(); navigate('/profile'); }}>
               <ProfileIcon sx={{ mr: 1, fontSize: 20 }} />
               Thông tin cá nhân
             </MenuItem>
-            <MenuItem onClick={() => { handleProfileMenuClose(); navigate('/settings'); }}>
+            <MenuItem onClick={() => { console.log('Clicked: Profile Menu - Cài đặt'); handleProfileMenuClose(); navigate('/settings'); }}>
               <SettingsIcon sx={{ mr: 1, fontSize: 20 }} />
               Cài đặt
             </MenuItem>
             <Divider />
-            <MenuItem onClick={handleLogout} sx={{ color: 'error.main' }}>
+            <MenuItem onClick={() => { console.log('Clicked: Profile Menu - Đăng xuất'); handleLogout(); }} sx={{ color: 'error.main' }}>
               <LogoutIcon sx={{ mr: 1, fontSize: 20 }} />
               Đăng xuất
             </MenuItem>
@@ -194,7 +240,7 @@ const Dashboard = () => {
               }
             }}
           >
-            <MenuItem>
+            <MenuItem onClick={() => console.log('Clicked: Notification Item 1') }>
               <Stack spacing={1}>
                 <Typography variant="subtitle2">Tài liệu mới cần ký</Typography>
                 <Typography variant="caption" color="text.secondary">
@@ -203,7 +249,7 @@ const Dashboard = () => {
               </Stack>
             </MenuItem>
             <Divider />
-            <MenuItem>
+            <MenuItem onClick={() => console.log('Clicked: Notification Item 2') }>
               <Stack spacing={1}>
                 <Typography variant="subtitle2">Đã ký tài liệu thành công</Typography>
                 <Typography variant="caption" color="text.secondary">
@@ -217,21 +263,24 @@ const Dashboard = () => {
         {/* Welcome Section */}
         <Box sx={{ mb: 6, textAlign: 'center' }}>
           <Typography variant="h6" color="text.secondary" sx={{ mb: 4 }}>
-            Chào mừng trở lại!
+            Chào mừng trở lại, {user?.fullName || user?.username}!
           </Typography>
           <Button
             variant="contained"
             size="large"
             startIcon={<AddIcon />}
-            onClick={() => navigate('/documents/create')}
+            onClick={() => { 
+              console.log('Clicked: Tạo tài liệu mới - Navigating to /documents/create');
+              navigate('/documents/create');
+            }}
             sx={{
               px: 4,
               py: 1.5,
               borderRadius: 2,
-              background: 'linear-gradient(45deg, #2196F3, #00BCD4)',
-              boxShadow: '0 4px 20px 0 rgba(33, 150, 243, 0.3)',
+              background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+              boxShadow: `0 4px 20px 0 ${theme.palette.primary.main}4D`,
               '&:hover': {
-                background: 'linear-gradient(45deg, #1976D2, #0097A7)',
+                background: `linear-gradient(45deg, ${theme.palette.primary.dark}, ${theme.palette.secondary.dark})`,
               },
             }}
           >
@@ -257,9 +306,12 @@ const Dashboard = () => {
                   boxShadow: '0 4px 20px 0 rgba(33, 150, 243, 0.1)',
                 },
               }}
-              onClick={() => navigate('/documents')}
+              onClick={() => { 
+                console.log('Clicked: Quick Stat - Tài liệu đã tạo - Navigating to /documents');
+                navigate('/documents');
+              }}
             >
-              <Typography variant="h4" sx={{ mb: 1, color: '#2196F3', fontWeight: 'bold' }}>
+              <Typography variant="h4" sx={{ mb: 1, color: theme.palette.primary.main, fontWeight: 'bold' }}>
                 {data.createdDocuments.length}
               </Typography>
               <Typography color="text.secondary">Tài liệu đã tạo</Typography>
@@ -272,18 +324,21 @@ const Dashboard = () => {
                 p: 3,
                 textAlign: 'center',
                 borderRadius: 4,
-                bgcolor: 'rgba(33, 150, 243, 0.05)',
-                border: '1px solid rgba(33, 150, 243, 0.2)',
+                bgcolor: 'rgba(255, 152, 0, 0.05)',
+                border: '1px solid rgba(255, 152, 0, 0.2)',
                 transition: 'transform 0.2s ease-in-out',
                 cursor: 'pointer',
                 '&:hover': {
                   transform: 'translateY(-4px)',
-                  boxShadow: '0 4px 20px 0 rgba(33, 150, 243, 0.1)',
+                  boxShadow: '0 4px 20px 0 rgba(255, 152, 0, 0.1)',
                 },
               }}
-              onClick={() => navigate('/documents/pending')}
+              onClick={() => { 
+                console.log('Clicked: Quick Stat - Chờ ký - Navigating to /documents?status=pending');
+                navigate('/documents?status=pending');
+              }}
             >
-              <Typography variant="h4" sx={{ mb: 1, color: '#2196F3', fontWeight: 'bold' }}>
+              <Typography variant="h4" sx={{ mb: 1, color: theme.palette.warning.main, fontWeight: 'bold' }}>
                 {data.needToSignDocuments.length}
               </Typography>
               <Typography color="text.secondary">Chờ ký</Typography>
@@ -296,18 +351,21 @@ const Dashboard = () => {
                 p: 3,
                 textAlign: 'center',
                 borderRadius: 4,
-                bgcolor: 'rgba(33, 150, 243, 0.05)',
-                border: '1px solid rgba(33, 150, 243, 0.2)',
+                bgcolor: 'rgba(76, 175, 80, 0.05)',
+                border: '1px solid rgba(76, 175, 80, 0.2)',
                 transition: 'transform 0.2s ease-in-out',
                 cursor: 'pointer',
                 '&:hover': {
                   transform: 'translateY(-4px)',
-                  boxShadow: '0 4px 20px 0 rgba(33, 150, 243, 0.1)',
+                  boxShadow: '0 4px 20px 0 rgba(76, 175, 80, 0.1)',
                 },
               }}
-              onClick={() => navigate('/documents/signed')}
+              onClick={() => { 
+                console.log('Clicked: Quick Stat - Đã ký - Navigating to /documents?status=signed');
+                navigate('/documents?status=signed');
+              }}
             >
-              <Typography variant="h4" sx={{ mb: 1, color: '#2196F3', fontWeight: 'bold' }}>
+              <Typography variant="h4" sx={{ mb: 1, color: theme.palette.success.main, fontWeight: 'bold' }}>
                 {data.signedDocuments.length}
               </Typography>
               <Typography color="text.secondary">Đã ký</Typography>
@@ -315,94 +373,33 @@ const Dashboard = () => {
           </Grid>
         </Grid>
 
-        {/* Recent Documents */}
-        <Box sx={{ mb: 6 }}>
-          <Typography variant="h5" sx={{ 
-            mb: 3, 
-            fontWeight: 600,
-            color: '#1976D2',
-          }}>
-            Tài liệu gần đây
-          </Typography>
-          <Grid container spacing={3}>
-            {data.createdDocuments.slice(0, 3).map((doc, index) => (
-              <Grid item xs={12} md={4} key={doc.id || index}>
-                <Card 
-                  sx={{ 
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease-in-out',
-                    border: '1px solid rgba(33, 150, 243, 0.1)',
-                    bgcolor: 'rgba(255, 255, 255, 0.8)',
-                    '&:hover': {
-                      transform: 'translateY(-4px)',
-                      boxShadow: '0 4px 20px 0 rgba(33, 150, 243, 0.15)',
-                      bgcolor: 'rgba(33, 150, 243, 0.02)',
-                    },
-                  }}
-                  onClick={() => navigate(`/documents/${doc.id}`)}
-                >
-                  <CardContent>
-                    <Stack spacing={2}>
-                      <Stack direction="row" alignItems="center" spacing={1}>
-                        <DocumentIcon sx={{ color: '#2196F3' }} />
-                        <Typography variant="subtitle1" noWrap sx={{ fontWeight: 500 }}>
-                          {doc.title}
-                        </Typography>
-                      </Stack>
-                      <Stack direction="row" justifyContent="space-between" alignItems="center">
-                        <Typography variant="caption" color="text.secondary">
-                          {new Date(doc.createdAt).toLocaleDateString()}
-                        </Typography>
-                        <Chip
-                          size="small"
-                          label={doc.status}
-                          sx={{
-                            bgcolor: doc.status === 'pending' ? 'rgba(33, 150, 243, 0.1)' : 'rgba(76, 175, 80, 0.1)',
-                            color: doc.status === 'pending' ? '#2196F3' : '#43a047',
-                            borderRadius: 1,
-                          }}
-                        />
-                      </Stack>
-                    </Stack>
-                  </CardContent>
-                </Card>
-              </Grid>
-            ))}
-          </Grid>
-        </Box>
-
         {/* Quick Actions */}
         <Box>
           <Typography variant="h5" sx={{ 
             mb: 3, 
             fontWeight: 600,
-            color: '#1976D2',
+            color: theme.palette.primary.dark,
           }}>
             Thao tác nhanh
           </Typography>
           <Grid container spacing={2}>
-            {[
-              { icon: <UploadIcon />, text: 'Tải lên tài liệu', path: '/documents/upload' },
-              { icon: <PendingIcon />, text: 'Tài liệu chờ ký', path: '/documents/pending' },
-              { icon: <SignedIcon />, text: 'Tài liệu đã ký', path: '/documents/signed' },
-              { icon: <DocumentIcon />, text: 'Tất cả tài liệu', path: '/documents' },
-            ].map((action, index) => (
+            {quickActions.map((action, index) => (
               <Grid item xs={12} sm={6} md={3} key={index}>
                 <Button
                   fullWidth
                   variant="outlined"
                   startIcon={action.icon}
-                  onClick={() => navigate(action.path)}
+                  onClick={action.onClick}
                   sx={{
                     py: 2,
                     borderRadius: 2,
-                    borderColor: 'rgba(33, 150, 243, 0.2)',
-                    color: '#2196F3',
+                    borderColor: action.color ? action.color : theme.palette.primary.light,
+                    color: action.color ? action.color : theme.palette.primary.main,
                     bgcolor: 'rgba(255, 255, 255, 0.8)',
                     transition: 'all 0.2s ease-in-out',
                     '&:hover': {
-                      borderColor: '#2196F3',
-                      bgcolor: 'rgba(33, 150, 243, 0.08)',
+                      borderColor: action.color ? action.color : theme.palette.primary.main,
+                      bgcolor: action.color ? `${action.color}1A` : `${theme.palette.primary.main}1A`,
                       transform: 'translateY(-2px)',
                     },
                   }}
