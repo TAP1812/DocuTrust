@@ -20,7 +20,7 @@ import {
   Search as SearchIcon,
   Description as DescriptionIcon,
 } from '@mui/icons-material';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import DocumentCard from '../components/documents/DocumentCard';
 import ShareDialog from '../components/documents/ShareDialog';
 import { useDocuments } from '../hooks/useDocuments';
@@ -101,10 +101,6 @@ const DocumentList = () => {
     setShareDialogOpen(true);
   };
 
-  const handleEdit = (document) => {
-    navigate(`/documents/${document._id}/edit`);
-  };
-
   const handleDeleteClick = (document) => {
     setSelectedDocument(document);
     setDeleteDialogOpen(true);
@@ -175,12 +171,15 @@ const DocumentList = () => {
             <Grid container spacing={3}>
               {filteredDocuments.map((document) => (
                 <Grid item xs={12} sm={6} md={4} key={document._id}>
-                  <DocumentCard
-                    document={document}
-                    onShare={handleShare}
-                    onEdit={handleEdit}
-                    onDelete={handleDeleteClick}
-                  />
+                  <Box 
+                    component={RouterLink} 
+                    to={`/documents/${document._id}`} 
+                    sx={{ textDecoration: 'none', display: 'block' }}
+                  >
+                    <DocumentCard
+                      document={document}
+                    />
+                  </Box>
                 </Grid>
               ))}
             </Grid>

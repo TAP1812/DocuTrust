@@ -8,7 +8,7 @@ import SignDocument from './pages/SignDocument.js';
 import VerifyDocument from './pages/VerifyDocument.js';
 import Dashboard from './pages/Dashboard.jsx';
 import Profile from './pages/Profile.js';
-// import DocumentDetail from './pages/DocumentDetail.js'; // Bạn sẽ cần tạo hoặc bỏ comment dòng này
+import DocumentDetail from './pages/DocumentDetail.js';
 
 const AppRoutes = () => {
   return (
@@ -16,7 +16,7 @@ const AppRoutes = () => {
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/documents" element={<DocumentList />} />
-      {/* <Route path="/documents/:id" element={<DocumentDetail />} /> */}
+      <Route path="/documents/:id" element={<DocumentDetail />} />
       <Route path="/documents/create" element={<CreateDocument />} />
       
       {/* Routes that require a document ID */}
