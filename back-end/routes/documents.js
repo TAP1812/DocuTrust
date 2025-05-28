@@ -148,7 +148,7 @@ router.get('/', async (req, res) => {
     
     if (userId) {
       const userObjectId = mongoose.Types.ObjectId.isValid(userId)
-        ? mongoose.Types.ObjectId(userId)
+        ? new mongoose.Types.ObjectId(userId)
         : null;
 
       if (!userObjectId) {
