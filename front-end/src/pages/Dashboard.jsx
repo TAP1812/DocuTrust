@@ -17,6 +17,7 @@ import {
   MenuItem,
   Avatar,
   Divider,
+  useTheme,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -33,6 +34,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
 const Dashboard = () => {
+  const theme = useTheme();
   const [data, setData] = useState({
     createdDocuments: [],
     needToSignDocuments: [],
@@ -83,7 +85,15 @@ const Dashboard = () => {
   if (loading) {
     return (
       <Box sx={{ width: '100%', mt: 4, display: 'flex', justifyContent: 'center' }}>
-        <LinearProgress sx={{ width: '60%', bgcolor: 'rgba(33, 150, 243, 0.1)' }} />
+        <LinearProgress 
+          sx={{ 
+            width: '60%', 
+            bgcolor: `${theme.palette.primary.main}15`,
+            '& .MuiLinearProgress-bar': {
+              bgcolor: theme.palette.primary.main,
+            }
+          }} 
+        />
       </Box>
     );
   }
@@ -101,7 +111,7 @@ const Dashboard = () => {
       <Box sx={{ 
         py: 6,
         minHeight: '100vh',
-        background: 'linear-gradient(135deg, rgba(33, 150, 243, 0.05) 0%, rgba(0, 188, 212, 0.05) 100%)',
+        background: `linear-gradient(135deg, ${theme.palette.primary.main}08 0%, ${theme.palette.secondary.main}08 100%)`,
       }}>
         {/* Header Section with Profile Menu */}
         <Stack 
@@ -114,7 +124,7 @@ const Dashboard = () => {
             variant="h4" 
             sx={{
               fontWeight: 700,
-              background: 'linear-gradient(45deg, #2196F3, #00BCD4)',
+              background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
               backgroundClip: 'text',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
@@ -125,16 +135,16 @@ const Dashboard = () => {
           <Stack direction="row" spacing={2} alignItems="center">
             <Tooltip title="Thông báo">
               <IconButton onClick={handleNotificationOpen}>
-                <NotificationIcon sx={{ color: '#2196F3' }} />
+                <NotificationIcon sx={{ color: theme.palette.primary.main }} />
               </IconButton>
             </Tooltip>
             <Button
               startIcon={<ProfileIcon />}
               onClick={handleProfileMenuOpen}
               sx={{
-                color: '#2196F3',
+                color: theme.palette.primary.main,
                 '&:hover': {
-                  bgcolor: 'rgba(33, 150, 243, 0.08)',
+                  bgcolor: `${theme.palette.primary.main}08`,
                 },
               }}
             >
@@ -151,7 +161,7 @@ const Dashboard = () => {
               sx: {
                 mt: 1,
                 minWidth: 200,
-                boxShadow: '0 4px 20px 0 rgba(0,0,0,0.1)',
+                boxShadow: theme.shadows[3],
               }
             }}
           >
@@ -180,7 +190,7 @@ const Dashboard = () => {
                 mt: 1,
                 minWidth: 320,
                 maxHeight: 400,
-                boxShadow: '0 4px 20px 0 rgba(0,0,0,0.1)',
+                boxShadow: theme.shadows[3],
               }
             }}
           >

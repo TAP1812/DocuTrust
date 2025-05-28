@@ -9,6 +9,8 @@ import {
   Stack,
   Chip,
   Box,
+  Avatar,
+  Tooltip,
 } from '@mui/material';
 import {
   MoreVert as MoreVertIcon,
@@ -16,8 +18,40 @@ import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   Description as DocumentIcon,
+  AccessTime as AccessTimeIcon,
 } from '@mui/icons-material';
 import { format } from 'date-fns';
+import { styled } from '@mui/material/styles';
+
+const StyledCard = styled(Card)(({ theme }) => ({
+  height: '100%',
+  display: 'flex',
+  flexDirection: 'column',
+  transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
+  borderRadius: theme.spacing(2),
+  overflow: 'visible',
+  '&:hover': {
+    transform: 'translateY(-4px)',
+    boxShadow: '0 8px 24px rgba(0, 0, 0, 0.15)',
+  },
+}));
+
+const DocumentAvatar = styled(Avatar)(({ theme }) => ({
+  backgroundColor: theme.palette.primary.main,
+  width: 48,
+  height: 48,
+  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+}));
+
+const StatusChip = styled(Chip)(({ theme, statuscolor }) => ({
+  borderRadius: theme.spacing(1),
+  fontWeight: 500,
+  backgroundColor: statuscolor.bg,
+  color: statuscolor.color,
+  '& .MuiChip-label': {
+    padding: '0 12px',
+  },
+}));
 
 const DocumentCard = ({ document, onShare, onEdit, onDelete }) => {
   const [anchorEl, setAnchorEl] = React.useState(null);
@@ -51,50 +85,54 @@ const DocumentCard = ({ document, onShare, onEdit, onDelete }) => {
   };
 
   return (
-    <Card
-      sx={{
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
-        '&:hover': {
-          transform: 'translateY(-4px)',
-          boxShadow: 3,
-        },
-      }}
-    >
-      <CardContent sx={{ flexGrow: 1 }}>
-        <Stack spacing={2}>
+    <StyledCard>
+      <CardContent sx={{ p: 3 }}>
+        <Stack spacing={2.5}>
           {/* Header */}
-          <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
-            <Stack direction="row" spacing={1} alignItems="center">
-              <DocumentIcon sx={{ color: '#2196F3' }} />
-              <Typography variant="h6" noWrap sx={{ maxWidth: 180 }}>
-                {document.title}
-              </Typography>
-            </Stack>
-            <IconButton size="small" onClick={handleMenuOpen}>
-              <MoreVertIcon />
-            </IconButton>
+          <Stack direction="row" spacing={2} alignItems="flex-start">
+            <DocumentAvatar>
+              <DocumentIcon />
+            </DocumentAvatar>
+            <Box sx={{ flex: 1 }}>
+              <Stack direction="row" justifyContent="space-between" alignItems="center">
+                <Tooltip title={document.title} placement="top">
+                  <Typography
+                    variant="h6"
+                    sx={{
+                      fontWeight: 600,
+                      fontSize: '1.1rem',
+                      maxWidth: 200,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    {document.title}
+                  </Typography>
+                </Tooltip>
+                <IconButton
+                  size="small"
+                  onClick={handleMenuOpen}
+                  sx={{
+                    '&:hover': {
+                      backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                    },
+                  }}
+                >
+                  <MoreVertIcon />
+                </IconButton>
+              </Stack>
+
+              <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1 }}>
+                <AccessTimeIcon sx={{ fontSize: '0.875rem', color: 'text.secondary' }} />
+                <Typography variant="body2" color="text.secondary">
+                  {format(new Date(document.createdAt), 'dd/MM/yyyy HH:mm')}
+                </Typography>
+              </Stack>
+            </Box>
           </Stack>
 
-          {/* Status and Date */}
-          <Stack spacing={1}>
-            <Chip
-              label={document.status}
-              size="small"
-              sx={{
-                bgcolor: getStatusColor(document.status).bg,
-                color: getStatusColor(document.status).color,
-                width: 'fit-content',
-              }}
-            />
-            <Typography variant="caption" color="text.secondary">
-              {format(new Date(document.createdAt), 'dd/MM/yyyy HH:mm')}
-            </Typography>
-          </Stack>
-
-          {/* Description */}
+          {/* Content */}
           <Typography
             variant="body2"
             color="text.secondary"
@@ -104,10 +142,20 @@ const DocumentCard = ({ document, onShare, onEdit, onDelete }) => {
               display: '-webkit-box',
               WebkitLineClamp: 2,
               WebkitBoxOrient: 'vertical',
+              minHeight: '40px',
             }}
           >
             {document.content || 'Không có mô tả'}
           </Typography>
+
+          {/* Footer */}
+          <Box sx={{ mt: 'auto' }}>
+            <StatusChip
+              label={document.status}
+              size="small"
+              statuscolor={getStatusColor(document.status)}
+            />
+          </Box>
         </Stack>
       </CardContent>
 
@@ -124,6 +172,15 @@ const DocumentCard = ({ document, onShare, onEdit, onDelete }) => {
           vertical: 'top',
           horizontal: 'right',
         }}
+        PaperProps={{
+          elevation: 3,
+          sx: {
+            mt: 1,
+            '& .MuiMenuItem-root': {
+              py: 1,
+            },
+          },
+        }}
       >
         <MenuItem
           onClick={() => {
@@ -131,7 +188,7 @@ const DocumentCard = ({ document, onShare, onEdit, onDelete }) => {
             onShare(document);
           }}
         >
-          <ShareIcon fontSize="small" sx={{ mr: 1 }} />
+          <ShareIcon fontSize="small" sx={{ mr: 1.5 }} />
           Chia sẻ
         </MenuItem>
         <MenuItem
@@ -140,7 +197,7 @@ const DocumentCard = ({ document, onShare, onEdit, onDelete }) => {
             onEdit(document);
           }}
         >
-          <EditIcon fontSize="small" sx={{ mr: 1 }} />
+          <EditIcon fontSize="small" sx={{ mr: 1.5 }} />
           Chỉnh sửa
         </MenuItem>
         <MenuItem
@@ -150,11 +207,11 @@ const DocumentCard = ({ document, onShare, onEdit, onDelete }) => {
           }}
           sx={{ color: 'error.main' }}
         >
-          <DeleteIcon fontSize="small" sx={{ mr: 1 }} />
+          <DeleteIcon fontSize="small" sx={{ mr: 1.5 }} />
           Xóa
         </MenuItem>
       </Menu>
-    </Card>
+    </StyledCard>
   );
 };
 
