@@ -2,91 +2,35 @@ import React, { useState, useEffect } from 'react';
 import {
   Box,
   Container,
-  Grid,
   Typography,
-  Card,
-  CardContent,
   Button,
+  Paper,
   Stack,
-  Avatar,
+  Grid,
   IconButton,
   Tooltip,
-  Badge,
-  Paper,
-  Chip,
   LinearProgress,
+  Card,
+  CardContent,
+  Chip,
+  Menu,
+  MenuItem,
+  Avatar,
   Divider,
 } from '@mui/material';
 import {
-  Description as DescriptionIcon,
-  NotificationsNone as NotificationIcon,
   Add as AddIcon,
-  CloudUpload as UploadIcon,
-  Send as SendIcon,
-  Download as DownloadIcon,
-  AccessTime as AccessTimeIcon,
-  CheckCircle as CheckCircleIcon,
-  PendingActions as PendingIcon,
-  MoreVert as MoreVertIcon,
+  Description as DocumentIcon,
+  AccessTime as PendingIcon,
+  CheckCircle as SignedIcon,
+  Upload as UploadIcon,
+  Person as ProfileIcon,
+  Logout as LogoutIcon,
+  Settings as SettingsIcon,
+  Notifications as NotificationIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { styled } from '@mui/material/styles';
-
-// Styled Components
-const StyledCard = styled(Card)(({ theme }) => ({
-  height: '100%',
-  position: 'relative',
-  overflow: 'hidden',
-  borderRadius: theme.shape.borderRadius * 2,
-  transition: 'transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out',
-  '&:hover': {
-    transform: 'translateY(-4px)',
-    boxShadow: theme.shadows[8],
-  },
-}));
-
-const GradientBox = styled(Box)(({ colors }) => ({
-  background: `linear-gradient(135deg, ${colors[0]} 0%, ${colors[1]} 100%)`,
-  borderRadius: '16px',
-  padding: '24px',
-  color: 'white',
-  height: '100%',
-  position: 'relative',
-  overflow: 'hidden',
-  '&::before': {
-    content: '""',
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    background: 'linear-gradient(45deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 100%)',
-    zIndex: 1,
-  },
-}));
-
-const QuickActionButton = styled(Button)(({ theme }) => ({
-  backgroundColor: 'rgba(255, 255, 255, 0.1)',
-  color: 'white',
-  backdropFilter: 'blur(10px)',
-  borderRadius: theme.shape.borderRadius * 2,
-  padding: theme.spacing(2, 3),
-  '&:hover': {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-  },
-}));
-
-const DocumentCard = styled(Paper)(({ theme }) => ({
-  padding: theme.spacing(2),
-  borderRadius: theme.shape.borderRadius * 2,
-  transition: 'transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out',
-  cursor: 'pointer',
-  '&:hover': {
-    transform: 'translateY(-4px)',
-    boxShadow: theme.shadows[4],
-  },
-}));
 
 const Dashboard = () => {
   const [data, setData] = useState({
@@ -96,8 +40,31 @@ const Dashboard = () => {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [anchorEl, setAnchorEl] = useState(null);
+  const [notificationAnchor, setNotificationAnchor] = useState(null);
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user'));
+
+  const handleProfileMenuOpen = (event) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleProfileMenuClose = () => {
+    setAnchorEl(null);
+  };
+
+  const handleNotificationOpen = (event) => {
+    setNotificationAnchor(event.currentTarget);
+  };
+
+  const handleNotificationClose = () => {
+    setNotificationAnchor(null);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('user');
+    navigate('/login');
+  };
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -113,225 +80,329 @@ const Dashboard = () => {
     fetchDashboardData();
   }, []);
 
-  const StatCard = ({ title, value, icon: Icon, colors }) => (
-    <GradientBox colors={colors}>
-      <Stack direction="row" justifyContent="space-between" alignItems="center">
-        <Box>
-          <Typography variant="h4" fontWeight="bold" sx={{ mb: 1 }}>
-            {value}
-          </Typography>
-          <Typography variant="body1" sx={{ opacity: 0.9 }}>
-            {title}
-          </Typography>
-        </Box>
-        <Avatar sx={{ width: 56, height: 56, bgcolor: 'rgba(255,255,255,0.2)' }}>
-          <Icon />
-        </Avatar>
-      </Stack>
-    </GradientBox>
-  );
+  if (loading) {
+    return (
+      <Box sx={{ width: '100%', mt: 4, display: 'flex', justifyContent: 'center' }}>
+        <LinearProgress sx={{ width: '60%', bgcolor: 'rgba(33, 150, 243, 0.1)' }} />
+      </Box>
+    );
+  }
 
-  const DocumentList = ({ title, documents, icon: Icon, gradientColors }) => (
-    <StyledCard>
-      <CardContent>
-        <Stack spacing={3}>
-          <Stack direction="row" alignItems="center" spacing={2}>
-            <Avatar sx={{ bgcolor: gradientColors[0] }}>
-              <Icon />
-            </Avatar>
-            <Typography variant="h6" fontWeight="600">
-              {title}
-            </Typography>
-          </Stack>
-          <Stack spacing={2}>
-            {documents.slice(0, 3).map((doc, index) => (
-              <DocumentCard key={doc.id || index} onClick={() => navigate(`/documents/${doc.id}`)}>
-                <Stack spacing={2}>
-                  <Stack direction="row" justifyContent="space-between" alignItems="center">
-                    <Stack direction="row" spacing={2} alignItems="center">
-                      <Avatar sx={{ width: 40, height: 40, bgcolor: `${gradientColors[0]}20` }}>
-                        <DescriptionIcon sx={{ color: gradientColors[0] }} />
-                      </Avatar>
-                      <Box>
-                        <Typography variant="subtitle1" fontWeight="500">
-                          {doc.title}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {new Date(doc.createdAt).toLocaleDateString()}
-                        </Typography>
-                      </Box>
-                    </Stack>
-                    <Chip
-                      label={doc.status}
-                      size="small"
-                      sx={{
-                        bgcolor: doc.status === 'pending' ? 'warning.light' : 'success.light',
-                        color: doc.status === 'pending' ? 'warning.dark' : 'success.dark',
-                      }}
-                    />
-                  </Stack>
-                </Stack>
-              </DocumentCard>
-            ))}
-          </Stack>
-        </Stack>
-      </CardContent>
-    </StyledCard>
-  );
-
-  if (loading) return (
-    <Box sx={{ width: '100%', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <LinearProgress sx={{ width: '50%' }} />
-    </Box>
-  );
-
-  if (error) return <Typography color="error">{error}</Typography>;
+  if (error) {
+    return (
+      <Box sx={{ p: 3, textAlign: 'center' }}>
+        <Typography color="error">{error}</Typography>
+      </Box>
+    );
+  }
 
   return (
-    <Container maxWidth="xl">
-      <Box sx={{ py: 4 }}>
-        {/* Header */}
-        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 4 }}>
-          <Box>
-            <Typography variant="h4" fontWeight="bold" sx={{
+    <Container maxWidth="lg">
+      <Box sx={{ 
+        py: 6,
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, rgba(33, 150, 243, 0.05) 0%, rgba(0, 188, 212, 0.05) 100%)',
+      }}>
+        {/* Header Section with Profile Menu */}
+        <Stack 
+          direction="row" 
+          justifyContent="space-between" 
+          alignItems="center" 
+          sx={{ mb: 6 }}
+        >
+          <Typography 
+            variant="h4" 
+            sx={{
+              fontWeight: 700,
               background: 'linear-gradient(45deg, #2196F3, #00BCD4)',
               backgroundClip: 'text',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
-            }}>
-              Dashboard
-            </Typography>
-            <Typography variant="body1" color="text.secondary">
-              Xin chào, {user?.fullName || user?.username}! 👋
-            </Typography>
-          </Box>
-          <Stack direction="row" spacing={2}>
+            }}
+          >
+            DocuTrust
+          </Typography>
+          <Stack direction="row" spacing={2} alignItems="center">
             <Tooltip title="Thông báo">
-              <IconButton>
-                <Badge badgeContent={4} color="error">
-                  <NotificationIcon />
-                </Badge>
+              <IconButton onClick={handleNotificationOpen}>
+                <NotificationIcon sx={{ color: '#2196F3' }} />
               </IconButton>
             </Tooltip>
             <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={() => navigate('/documents/create')}
+              startIcon={<ProfileIcon />}
+              onClick={handleProfileMenuOpen}
               sx={{
-                background: 'linear-gradient(45deg, #2196F3, #00BCD4)',
-                boxShadow: '0 4px 20px 0 rgba(33, 150, 243, 0.3)',
+                color: '#2196F3',
+                '&:hover': {
+                  bgcolor: 'rgba(33, 150, 243, 0.08)',
+                },
               }}
             >
-              Tạo tài liệu mới
+              {user?.fullName || user?.username}
             </Button>
           </Stack>
+
+          {/* Profile Menu */}
+          <Menu
+            anchorEl={anchorEl}
+            open={Boolean(anchorEl)}
+            onClose={handleProfileMenuClose}
+            PaperProps={{
+              sx: {
+                mt: 1,
+                minWidth: 200,
+                boxShadow: '0 4px 20px 0 rgba(0,0,0,0.1)',
+              }
+            }}
+          >
+            <MenuItem onClick={() => { handleProfileMenuClose(); navigate('/profile'); }}>
+              <ProfileIcon sx={{ mr: 1, fontSize: 20 }} />
+              Thông tin cá nhân
+            </MenuItem>
+            <MenuItem onClick={() => { handleProfileMenuClose(); navigate('/settings'); }}>
+              <SettingsIcon sx={{ mr: 1, fontSize: 20 }} />
+              Cài đặt
+            </MenuItem>
+            <Divider />
+            <MenuItem onClick={handleLogout} sx={{ color: 'error.main' }}>
+              <LogoutIcon sx={{ mr: 1, fontSize: 20 }} />
+              Đăng xuất
+            </MenuItem>
+          </Menu>
+
+          {/* Notifications Menu */}
+          <Menu
+            anchorEl={notificationAnchor}
+            open={Boolean(notificationAnchor)}
+            onClose={handleNotificationClose}
+            PaperProps={{
+              sx: {
+                mt: 1,
+                minWidth: 320,
+                maxHeight: 400,
+                boxShadow: '0 4px 20px 0 rgba(0,0,0,0.1)',
+              }
+            }}
+          >
+            <MenuItem>
+              <Stack spacing={1}>
+                <Typography variant="subtitle2">Tài liệu mới cần ký</Typography>
+                <Typography variant="caption" color="text.secondary">
+                  2 phút trước
+                </Typography>
+              </Stack>
+            </MenuItem>
+            <Divider />
+            <MenuItem>
+              <Stack spacing={1}>
+                <Typography variant="subtitle2">Đã ký tài liệu thành công</Typography>
+                <Typography variant="caption" color="text.secondary">
+                  1 giờ trước
+                </Typography>
+              </Stack>
+            </MenuItem>
+          </Menu>
         </Stack>
 
-        {/* Stats Section */}
-        <Grid container spacing={3} sx={{ mb: 4 }}>
+        {/* Welcome Section */}
+        <Box sx={{ mb: 6, textAlign: 'center' }}>
+          <Typography variant="h6" color="text.secondary" sx={{ mb: 4 }}>
+            Chào mừng trở lại!
+          </Typography>
+          <Button
+            variant="contained"
+            size="large"
+            startIcon={<AddIcon />}
+            onClick={() => navigate('/documents/create')}
+            sx={{
+              px: 4,
+              py: 1.5,
+              borderRadius: 2,
+              background: 'linear-gradient(45deg, #2196F3, #00BCD4)',
+              boxShadow: '0 4px 20px 0 rgba(33, 150, 243, 0.3)',
+              '&:hover': {
+                background: 'linear-gradient(45deg, #1976D2, #0097A7)',
+              },
+            }}
+          >
+            Tạo tài liệu mới
+          </Button>
+        </Box>
+
+        {/* Quick Stats */}
+        <Grid container spacing={3} sx={{ mb: 6 }}>
           <Grid item xs={12} md={4}>
-            <StatCard
-              title="Tài liệu đã tạo"
-              value={data.createdDocuments.length}
-              icon={DescriptionIcon}
-              colors={['#2196F3', '#1976D2']}
-            />
+            <Paper
+              elevation={0}
+              sx={{
+                p: 3,
+                textAlign: 'center',
+                borderRadius: 4,
+                bgcolor: 'rgba(33, 150, 243, 0.05)',
+                border: '1px solid rgba(33, 150, 243, 0.2)',
+                transition: 'transform 0.2s ease-in-out',
+                cursor: 'pointer',
+                '&:hover': {
+                  transform: 'translateY(-4px)',
+                  boxShadow: '0 4px 20px 0 rgba(33, 150, 243, 0.1)',
+                },
+              }}
+              onClick={() => navigate('/documents')}
+            >
+              <Typography variant="h4" sx={{ mb: 1, color: '#2196F3', fontWeight: 'bold' }}>
+                {data.createdDocuments.length}
+              </Typography>
+              <Typography color="text.secondary">Tài liệu đã tạo</Typography>
+            </Paper>
           </Grid>
           <Grid item xs={12} md={4}>
-            <StatCard
-              title="Chờ ký"
-              value={data.needToSignDocuments.length}
-              icon={PendingIcon}
-              colors={['#FF9800', '#F57C00']}
-            />
+            <Paper
+              elevation={0}
+              sx={{
+                p: 3,
+                textAlign: 'center',
+                borderRadius: 4,
+                bgcolor: 'rgba(33, 150, 243, 0.05)',
+                border: '1px solid rgba(33, 150, 243, 0.2)',
+                transition: 'transform 0.2s ease-in-out',
+                cursor: 'pointer',
+                '&:hover': {
+                  transform: 'translateY(-4px)',
+                  boxShadow: '0 4px 20px 0 rgba(33, 150, 243, 0.1)',
+                },
+              }}
+              onClick={() => navigate('/documents/pending')}
+            >
+              <Typography variant="h4" sx={{ mb: 1, color: '#2196F3', fontWeight: 'bold' }}>
+                {data.needToSignDocuments.length}
+              </Typography>
+              <Typography color="text.secondary">Chờ ký</Typography>
+            </Paper>
           </Grid>
           <Grid item xs={12} md={4}>
-            <StatCard
-              title="Đã ký"
-              value={data.signedDocuments.length}
-              icon={CheckCircleIcon}
-              colors={['#4CAF50', '#388E3C']}
-            />
+            <Paper
+              elevation={0}
+              sx={{
+                p: 3,
+                textAlign: 'center',
+                borderRadius: 4,
+                bgcolor: 'rgba(33, 150, 243, 0.05)',
+                border: '1px solid rgba(33, 150, 243, 0.2)',
+                transition: 'transform 0.2s ease-in-out',
+                cursor: 'pointer',
+                '&:hover': {
+                  transform: 'translateY(-4px)',
+                  boxShadow: '0 4px 20px 0 rgba(33, 150, 243, 0.1)',
+                },
+              }}
+              onClick={() => navigate('/documents/signed')}
+            >
+              <Typography variant="h4" sx={{ mb: 1, color: '#2196F3', fontWeight: 'bold' }}>
+                {data.signedDocuments.length}
+              </Typography>
+              <Typography color="text.secondary">Đã ký</Typography>
+            </Paper>
           </Grid>
         </Grid>
 
-        {/* Quick Actions */}
-        <Box sx={{ 
-          mb: 4, 
-          p: 3, 
-          borderRadius: 4,
-          background: 'linear-gradient(135deg, #1a237e 0%, #0d47a1 100%)',
-        }}>
-          <Typography variant="h6" sx={{ color: 'white', mb: 3 }}>
-            Thao tác nhanh
+        {/* Recent Documents */}
+        <Box sx={{ mb: 6 }}>
+          <Typography variant="h5" sx={{ 
+            mb: 3, 
+            fontWeight: 600,
+            color: '#1976D2',
+          }}>
+            Tài liệu gần đây
           </Typography>
-          <Grid container spacing={2}>
-            <Grid item xs={12} sm={6} md={3}>
-              <QuickActionButton
-                fullWidth
-                startIcon={<UploadIcon />}
-                onClick={() => navigate('/documents/upload')}
-              >
-                Tải lên tài liệu
-              </QuickActionButton>
-            </Grid>
-            <Grid item xs={12} sm={6} md={3}>
-              <QuickActionButton
-                fullWidth
-                startIcon={<SendIcon />}
-                onClick={() => navigate('/documents/send')}
-              >
-                Gửi ký tài liệu
-              </QuickActionButton>
-            </Grid>
-            <Grid item xs={12} sm={6} md={3}>
-              <QuickActionButton
-                fullWidth
-                startIcon={<AccessTimeIcon />}
-                onClick={() => navigate('/documents/pending')}
-              >
-                Tài liệu chờ ký
-              </QuickActionButton>
-            </Grid>
-            <Grid item xs={12} sm={6} md={3}>
-              <QuickActionButton
-                fullWidth
-                startIcon={<DownloadIcon />}
-                onClick={() => navigate('/documents/download')}
-              >
-                Tải xuống
-              </QuickActionButton>
-            </Grid>
+          <Grid container spacing={3}>
+            {data.createdDocuments.slice(0, 3).map((doc, index) => (
+              <Grid item xs={12} md={4} key={doc.id || index}>
+                <Card 
+                  sx={{ 
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease-in-out',
+                    border: '1px solid rgba(33, 150, 243, 0.1)',
+                    bgcolor: 'rgba(255, 255, 255, 0.8)',
+                    '&:hover': {
+                      transform: 'translateY(-4px)',
+                      boxShadow: '0 4px 20px 0 rgba(33, 150, 243, 0.15)',
+                      bgcolor: 'rgba(33, 150, 243, 0.02)',
+                    },
+                  }}
+                  onClick={() => navigate(`/documents/${doc.id}`)}
+                >
+                  <CardContent>
+                    <Stack spacing={2}>
+                      <Stack direction="row" alignItems="center" spacing={1}>
+                        <DocumentIcon sx={{ color: '#2196F3' }} />
+                        <Typography variant="subtitle1" noWrap sx={{ fontWeight: 500 }}>
+                          {doc.title}
+                        </Typography>
+                      </Stack>
+                      <Stack direction="row" justifyContent="space-between" alignItems="center">
+                        <Typography variant="caption" color="text.secondary">
+                          {new Date(doc.createdAt).toLocaleDateString()}
+                        </Typography>
+                        <Chip
+                          size="small"
+                          label={doc.status}
+                          sx={{
+                            bgcolor: doc.status === 'pending' ? 'rgba(33, 150, 243, 0.1)' : 'rgba(76, 175, 80, 0.1)',
+                            color: doc.status === 'pending' ? '#2196F3' : '#43a047',
+                            borderRadius: 1,
+                          }}
+                        />
+                      </Stack>
+                    </Stack>
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))}
           </Grid>
         </Box>
 
-        {/* Documents Lists */}
-        <Grid container spacing={3}>
-          <Grid item xs={12} md={4}>
-            <DocumentList
-              title="Tài liệu cần ký"
-              documents={data.needToSignDocuments}
-              icon={PendingIcon}
-              gradientColors={['#FF9800', '#F57C00']}
-            />
+        {/* Quick Actions */}
+        <Box>
+          <Typography variant="h5" sx={{ 
+            mb: 3, 
+            fontWeight: 600,
+            color: '#1976D2',
+          }}>
+            Thao tác nhanh
+          </Typography>
+          <Grid container spacing={2}>
+            {[
+              { icon: <UploadIcon />, text: 'Tải lên tài liệu', path: '/documents/upload' },
+              { icon: <PendingIcon />, text: 'Tài liệu chờ ký', path: '/documents/pending' },
+              { icon: <SignedIcon />, text: 'Tài liệu đã ký', path: '/documents/signed' },
+              { icon: <DocumentIcon />, text: 'Tất cả tài liệu', path: '/documents' },
+            ].map((action, index) => (
+              <Grid item xs={12} sm={6} md={3} key={index}>
+                <Button
+                  fullWidth
+                  variant="outlined"
+                  startIcon={action.icon}
+                  onClick={() => navigate(action.path)}
+                  sx={{
+                    py: 2,
+                    borderRadius: 2,
+                    borderColor: 'rgba(33, 150, 243, 0.2)',
+                    color: '#2196F3',
+                    bgcolor: 'rgba(255, 255, 255, 0.8)',
+                    transition: 'all 0.2s ease-in-out',
+                    '&:hover': {
+                      borderColor: '#2196F3',
+                      bgcolor: 'rgba(33, 150, 243, 0.08)',
+                      transform: 'translateY(-2px)',
+                    },
+                  }}
+                >
+                  {action.text}
+                </Button>
+              </Grid>
+            ))}
           </Grid>
-          <Grid item xs={12} md={4}>
-            <DocumentList
-              title="Tài liệu đã tạo"
-              documents={data.createdDocuments}
-              icon={DescriptionIcon}
-              gradientColors={['#2196F3', '#1976D2']}
-            />
-          </Grid>
-          <Grid item xs={12} md={4}>
-            <DocumentList
-              title="Tài liệu đã ký"
-              documents={data.signedDocuments}
-              icon={CheckCircleIcon}
-              gradientColors={['#4CAF50', '#388E3C']}
-            />
-          </Grid>
-        </Grid>
+        </Box>
       </Box>
     </Container>
   );

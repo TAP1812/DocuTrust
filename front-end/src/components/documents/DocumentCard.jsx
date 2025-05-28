@@ -2,55 +2,22 @@ import React from 'react';
 import {
   Card,
   CardContent,
-  CardActions,
   Typography,
   IconButton,
-  Chip,
-  Box,
   Menu,
   MenuItem,
+  Stack,
+  Chip,
+  Box,
 } from '@mui/material';
 import {
   MoreVert as MoreVertIcon,
-  Description as DescriptionIcon,
   Share as ShareIcon,
+  Edit as EditIcon,
+  Delete as DeleteIcon,
+  Description as DocumentIcon,
 } from '@mui/icons-material';
-import { styled } from '@mui/material/styles';
 import { format } from 'date-fns';
-
-const StyledCard = styled(Card)(({ theme }) => ({
-  height: '100%',
-  display: 'flex',
-  flexDirection: 'column',
-  transition: 'transform 0.2s ease-in-out',
-  '&:hover': {
-    transform: 'translateY(-4px)',
-    boxShadow: theme.shadows[4],
-  },
-}));
-
-const DocumentIcon = styled(Box)(({ theme }) => ({
-  width: '100%',
-  height: '140px',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  backgroundColor: theme.palette.grey[100],
-  borderBottom: `1px solid ${theme.palette.grey[200]}`,
-}));
-
-const StatusChip = styled(Chip)(({ status, theme }) => {
-  const colors = {
-    draft: theme.palette.info.main,
-    pending: theme.palette.warning.main,
-    verified: theme.palette.success.main,
-  };
-
-  return {
-    backgroundColor: colors[status],
-    color: '#fff',
-  };
-});
 
 const DocumentCard = ({ document, onShare, onEdit, onDelete }) => {
   const [anchorEl, setAnchorEl] = React.useState(null);
@@ -63,72 +30,131 @@ const DocumentCard = ({ document, onShare, onEdit, onDelete }) => {
     setAnchorEl(null);
   };
 
-  const handleAction = (action) => {
-    handleMenuClose();
-    switch (action) {
-      case 'edit':
-        onEdit(document);
-        break;
-      case 'share':
-        onShare(document);
-        break;
-      case 'delete':
-        onDelete(document._id);
-        break;
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'pending':
+        return {
+          bg: 'rgba(255, 152, 0, 0.1)',
+          color: '#f57c00'
+        };
+      case 'signed':
+        return {
+          bg: 'rgba(76, 175, 80, 0.1)',
+          color: '#43a047'
+        };
       default:
-        break;
+        return {
+          bg: 'rgba(33, 150, 243, 0.1)',
+          color: '#1976d2'
+        };
     }
   };
 
   return (
-    <StyledCard>
-      <DocumentIcon>
-        <DescriptionIcon sx={{ fontSize: 60, color: 'primary.main' }} />
-      </DocumentIcon>
-      
+    <Card
+      sx={{
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
+        '&:hover': {
+          transform: 'translateY(-4px)',
+          boxShadow: 3,
+        },
+      }}
+    >
       <CardContent sx={{ flexGrow: 1 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-          <Typography variant="h6" component="div" noWrap>
-            {document.title}
-          </Typography>
-          <IconButton size="small" onClick={handleMenuOpen}>
-            <MoreVertIcon />
-          </IconButton>
-        </Box>
+        <Stack spacing={2}>
+          {/* Header */}
+          <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+            <Stack direction="row" spacing={1} alignItems="center">
+              <DocumentIcon sx={{ color: '#2196F3' }} />
+              <Typography variant="h6" noWrap sx={{ maxWidth: 180 }}>
+                {document.title}
+              </Typography>
+            </Stack>
+            <IconButton size="small" onClick={handleMenuOpen}>
+              <MoreVertIcon />
+            </IconButton>
+          </Stack>
 
-        <Typography variant="body2" color="text.secondary" gutterBottom>
-          Last updated: {format(new Date(document.updatedAt), 'MMM dd, yyyy')}
-        </Typography>
-
-        <Box sx={{ display: 'flex', gap: 1, mt: 2 }}>
-          <StatusChip
-            label={document.status}
-            status={document.status}
-            size="small"
-          />
-          {document.sharedWith?.length > 0 && (
+          {/* Status and Date */}
+          <Stack spacing={1}>
             <Chip
-              icon={<ShareIcon />}
-              label={`Shared with ${document.sharedWith.length}`}
+              label={document.status}
               size="small"
-              variant="outlined"
+              sx={{
+                bgcolor: getStatusColor(document.status).bg,
+                color: getStatusColor(document.status).color,
+                width: 'fit-content',
+              }}
             />
-          )}
-        </Box>
+            <Typography variant="caption" color="text.secondary">
+              {format(new Date(document.createdAt), 'dd/MM/yyyy HH:mm')}
+            </Typography>
+          </Stack>
+
+          {/* Description */}
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+            }}
+          >
+            {document.content || 'Không có mô tả'}
+          </Typography>
+        </Stack>
       </CardContent>
 
+      {/* Actions Menu */}
       <Menu
         anchorEl={anchorEl}
         open={Boolean(anchorEl)}
         onClose={handleMenuClose}
+        anchorOrigin={{
+          vertical: 'bottom',
+          horizontal: 'right',
+        }}
+        transformOrigin={{
+          vertical: 'top',
+          horizontal: 'right',
+        }}
       >
-        <MenuItem onClick={() => handleAction('edit')}>Edit</MenuItem>
-        <MenuItem onClick={() => handleAction('share')}>Share</MenuItem>
-        <MenuItem onClick={() => handleAction('delete')} sx={{ color: 'error.main' }}>
-          Delete
+        <MenuItem
+          onClick={() => {
+            handleMenuClose();
+            onShare(document);
+          }}
+        >
+          <ShareIcon fontSize="small" sx={{ mr: 1 }} />
+          Chia sẻ
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            handleMenuClose();
+            onEdit(document);
+          }}
+        >
+          <EditIcon fontSize="small" sx={{ mr: 1 }} />
+          Chỉnh sửa
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            handleMenuClose();
+            onDelete(document);
+          }}
+          sx={{ color: 'error.main' }}
+        >
+          <DeleteIcon fontSize="small" sx={{ mr: 1 }} />
+          Xóa
         </MenuItem>
       </Menu>
-    </StyledCard>
+    </Card>
   );
 };
 

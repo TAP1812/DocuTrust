@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -6,126 +6,97 @@ import {
   DialogActions,
   Button,
   TextField,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Box,
+  Autocomplete,
+  Stack,
   Typography,
   Chip,
   CircularProgress,
 } from '@mui/material';
-import { styled } from '@mui/material/styles';
 import { useUsers } from '../../hooks/useUsers';
 
-const StyledChip = styled(Chip)(({ theme }) => ({
-  margin: theme.spacing(0.5),
-}));
+const ShareDialog = ({ open, onClose, document, onShare }) => {
+  const [selectedUsers, setSelectedUsers] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const { users, loading, searchUsers } = useUsers();
 
-const ShareDialog = ({ open, onClose, document }) => {
-  const [selectedUser, setSelectedUser] = useState('');
-  const [permission, setPermission] = useState('read');
-  const { users, loading, error } = useUsers();
-  const [sharedUsers, setSharedUsers] = useState(document?.sharedWith || []);
+  useEffect(() => {
+    if (searchTerm) {
+      const delayDebounceFn = setTimeout(() => {
+        searchUsers(searchTerm);
+      }, 500);
+
+      return () => clearTimeout(delayDebounceFn);
+    }
+  }, [searchTerm, searchUsers]);
 
   const handleShare = () => {
-    if (!selectedUser) return;
-
-    const newShare = {
-      user: selectedUser,
-      permission: permission,
-    };
-
-    setSharedUsers([...sharedUsers, newShare]);
-    setSelectedUser('');
+    if (selectedUsers.length > 0) {
+      onShare(document._id, selectedUsers.map(user => user.email));
+      setSelectedUsers([]);
+      onClose();
+    }
   };
 
-  const handleRemoveShare = (userId) => {
-    setSharedUsers(sharedUsers.filter(share => share.user !== userId));
-  };
-
-  const handleSave = () => {
-    // Call API to update document sharing
+  const handleClose = () => {
+    setSelectedUsers([]);
     onClose();
   };
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>Share Document</DialogTitle>
+    <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
+      <DialogTitle>Chia sẻ tài liệu</DialogTitle>
       <DialogContent>
-        <Box sx={{ mb: 3 }}>
+        <Stack spacing={3}>
           <Typography variant="subtitle1" gutterBottom>
             {document?.title}
           </Typography>
-        </Box>
 
-        <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
-          <FormControl fullWidth>
-            <InputLabel>User</InputLabel>
-            <Select
-              value={selectedUser}
-              onChange={(e) => setSelectedUser(e.target.value)}
-              label="User"
-            >
-              {loading ? (
-                <MenuItem disabled>
-                  <CircularProgress size={20} />
-                </MenuItem>
-              ) : (
-                users?.map((user) => (
-                  <MenuItem key={user._id} value={user._id}>
-                    {user.username}
-                  </MenuItem>
-                ))
-              )}
-            </Select>
-          </FormControl>
-
-          <FormControl sx={{ minWidth: 120 }}>
-            <InputLabel>Permission</InputLabel>
-            <Select
-              value={permission}
-              onChange={(e) => setPermission(e.target.value)}
-              label="Permission"
-            >
-              <MenuItem value="read">Read</MenuItem>
-              <MenuItem value="write">Write</MenuItem>
-            </Select>
-          </FormControl>
-
-          <Button
-            variant="contained"
-            onClick={handleShare}
-            disabled={!selectedUser}
-          >
-            Add
-          </Button>
-        </Box>
-
-        <Box sx={{ mt: 2 }}>
-          <Typography variant="subtitle2" gutterBottom>
-            Shared with:
-          </Typography>
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-            {sharedUsers.map((share) => {
-              const user = users?.find(u => u._id === share.user);
-              return (
-                <StyledChip
-                  key={share.user}
-                  label={`${user?.username || 'Unknown'} (${share.permission})`}
-                  onDelete={() => handleRemoveShare(share.user)}
-                  color="primary"
-                  variant="outlined"
+          <Autocomplete
+            multiple
+            options={users}
+            loading={loading}
+            value={selectedUsers}
+            onChange={(event, newValue) => setSelectedUsers(newValue)}
+            getOptionLabel={(option) => option.email}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="Thêm người dùng"
+                variant="outlined"
+                onChange={(e) => setSearchTerm(e.target.value)}
+                InputProps={{
+                  ...params.InputProps,
+                  endAdornment: (
+                    <>
+                      {loading ? <CircularProgress color="inherit" size={20} /> : null}
+                      {params.InputProps.endAdornment}
+                    </>
+                  ),
+                }}
+              />
+            )}
+            renderTags={(value, getTagProps) =>
+              value.map((option, index) => (
+                <Chip
+                  label={option.email}
+                  {...getTagProps({ index })}
+                  key={option.email}
                 />
-              );
-            })}
-          </Box>
-        </Box>
+              ))
+            }
+            noOptionsText="Không tìm thấy người dùng"
+            loadingText="Đang tìm kiếm..."
+          />
+        </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
-        <Button onClick={handleSave} variant="contained" color="primary">
-          Save
+        <Button onClick={handleClose}>Hủy</Button>
+        <Button
+          onClick={handleShare}
+          variant="contained"
+          disabled={selectedUsers.length === 0}
+        >
+          Chia sẻ
         </Button>
       </DialogActions>
     </Dialog>
