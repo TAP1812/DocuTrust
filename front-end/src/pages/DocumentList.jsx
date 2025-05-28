@@ -159,7 +159,7 @@ const DocumentList = () => {
               variant="contained"
               color="primary"
               startIcon={<AddIcon />}
-              onClick={() => navigate('/documents/new')}
+              onClick={() => navigate('/documents/create')}
             >
               New Document
             </StyledButton>

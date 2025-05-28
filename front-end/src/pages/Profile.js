@@ -23,6 +23,28 @@ import {
   Key as KeyIcon,
 } from '@mui/icons-material';
 import { styled } from '@mui/material/styles';
+import BackToDashboard from '../components/BackToDashboard';
+
+// Add keyframe animation
+const fadeInKeyframes = `
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+`;
+
+// Add the keyframes to the document
+if (typeof document !== 'undefined') {
+  const styleSheet = document.createElement('style');
+  styleSheet.textContent = fadeInKeyframes;
+  document.head.appendChild(styleSheet);
+}
 
 const HeaderSection = styled(Box)(({ theme }) => ({
   marginBottom: theme.spacing(4),
@@ -121,29 +143,7 @@ function Profile() {
   return (
     <Container maxWidth="lg">
       <Box sx={{ py: 4 }}>
-        <HeaderSection>
-          <IconButton
-            onClick={() => navigate('/dashboard')}
-            sx={{ 
-              backgroundColor: 'rgba(0, 0, 0, 0.04)',
-              '&:hover': {
-                backgroundColor: 'rgba(0, 0, 0, 0.08)',
-              }
-            }}
-          >
-            <ArrowBackIcon />
-          </IconButton>
-          <Typography
-            variant="h4"
-            component="h1"
-            sx={{
-              fontWeight: 600,
-              color: 'text.primary',
-            }}
-          >
-            Thông tin cá nhân
-          </Typography>
-        </HeaderSection>
+        <BackToDashboard title="Thông tin cá nhân" />
 
         <Fade in={true}>
           <StyledPaper>
@@ -260,14 +260,30 @@ function Profile() {
                       </Paper>
                     </Grid>
                     
-                    {(success || error) && (
-                      <Grid item xs={12}>
-                        <Fade in={true}>
-                          {success && <Alert severity="success" sx={{ borderRadius: 2 }}>{success}</Alert>}
-                          {error && <Alert severity="error" sx={{ borderRadius: 2 }}>{error}</Alert>}
-                        </Fade>
-                      </Grid>
-                    )}
+                    <Grid item xs={12}>
+                      {success && (
+                        <Alert 
+                          severity="success" 
+                          sx={{ 
+                            borderRadius: 2,
+                            animation: 'fadeIn 0.3s ease-in'
+                          }}
+                        >
+                          {success}
+                        </Alert>
+                      )}
+                      {error && (
+                        <Alert 
+                          severity="error" 
+                          sx={{ 
+                            borderRadius: 2,
+                            animation: 'fadeIn 0.3s ease-in'
+                          }}
+                        >
+                          {error}
+                        </Alert>
+                      )}
+                    </Grid>
 
                     <Grid item xs={12}>
                       <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
