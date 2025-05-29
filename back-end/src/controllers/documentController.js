@@ -1,5 +1,7 @@
 const Document = require('../models/Document');
 const crypto = require('crypto');
+const path = require('path');
+const fs = require('fs');
 
 // Create a new document
 const createDocument = async (req, res) => {
@@ -142,6 +144,37 @@ const deleteDocument = async (req, res) => {
   }
 };
 
+// Get file content of a document
+const getDocumentFileContent = async (req, res) => {
+  try {
+    const document = await Document.findOne({
+      _id: req.params.id,
+      $or: [
+        { owner: req.user._id },
+        { 'sharedWith.user': req.user._id },
+      ],
+    });
+
+    if (!document) {
+      return res.status(404).json({ message: 'Document not found or unauthorized' });
+    }
+
+    // Get absolute path to the file
+    const filePath = path.resolve(__dirname, '../../', document.fileUrl);
+    
+    // Check if file exists
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ message: 'File not found' });
+    }
+
+    // Send the file
+    res.sendFile(filePath);
+  } catch (error) {
+    console.error('Error serving file:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
 module.exports = {
   createDocument,
   getDocuments,
@@ -149,4 +182,5 @@ module.exports = {
   updateDocument,
   shareDocument,
   deleteDocument,
+  getDocumentFileContent
 }; 

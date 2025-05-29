@@ -10,6 +10,7 @@ const {
   updateDocument,
   shareDocument,
   deleteDocument,
+  getDocumentFileContent
 } = require('../controllers/documentController');
 
 // Configure multer for file upload
@@ -40,6 +41,7 @@ const upload = multer({
 router.post('/', auth, upload.single('file'), createDocument);
 router.get('/', auth, getDocuments);
 router.get('/:id', auth, getDocument);
+router.get('/:id/file-content', auth, getDocumentFileContent);
 router.put('/:id', auth, updateDocument);
 router.post('/:id/share', auth, shareDocument);
 router.delete('/:id', auth, deleteDocument);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { useParams, Link as RouterLink, useNavigate } from 'react-router-dom';
 import {
   Container,
@@ -20,69 +20,41 @@ import {
   Person as PersonIcon,
   AccessTime as AccessTimeIcon,
   CheckCircleOutline as CheckCircleOutlineIcon,
-  Security as SecurityIcon,
   Fingerprint as FingerprintIcon,
   Download as DownloadIcon,
   Draw as SignIcon,
   VerifiedUser as VerifyIcon,
 } from '@mui/icons-material';
-
-// Dữ liệu mẫu - bạn sẽ thay thế bằng fetch API
-const mockDocument = {
-  _id: '123xyz',
-  title: 'Hợp đồng Dịch vụ ABC',
-  description: 'Mô tả chi tiết về hợp đồng dịch vụ giữa công ty A và công ty B.',
-  status: 'pending_signature', // 'signed', 'rejected', 'draft'
-  createdBy: 'user123 (Nguyễn Văn A)',
-  createdAt: '2023-10-26T10:00:00Z',
-  updatedAt: '2023-10-26T10:00:00Z',
-  participants: [
-    { userId: 'user123', email: 'nguyenvana@example.com', role: 'creator', hasSigned: true, signedAt: '2023-10-26T10:05:00Z' },
-    { userId: 'user456', email: 'tranthib@example.com', role: 'signer', hasSigned: false, signedAt: null },
-    { userId: 'user789', email: 'phamvanc@example.com', role: 'viewer', hasSigned: false, signedAt: null },
-  ],
-  fileUrl: '#', // Đường dẫn đến file tài liệu
-  auditTrail: [
-    { event: 'Tạo tài liệu', user: 'nguyenvana@example.com', timestamp: '2023-10-26T10:00:00Z' },
-    { event: 'Mời ký: tranthib@example.com', user: 'nguyenvana@example.com', timestamp: '2023-10-26T10:02:00Z' },
-    { event: 'Xem tài liệu', user: 'tranthib@example.com', timestamp: '2023-10-26T10:15:00Z' },
-  ],
-};
+import { useDocuments } from '../hooks/useDocuments';
 
 const DocumentDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [document, setDocument] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const { currentDocument: document, loading, error, fetchDocumentById } = useDocuments();
+
+  console.log('[DocumentDetail] Component rendered. Loading:', loading, 'Error:', error, 'Document from hook:', document);
+
+  // Construct PDF URL to point to the new backend API endpoint
+  let pdfUrl = null;
+  let downloadUrl = null; // Separate URL for download if needed, but can be same as pdfUrl
+
+  if (document && document._id) {
+    const backendApiBaseUrl = 'http://localhost:3001/api'; // Your API base URL
+    pdfUrl = `${backendApiBaseUrl}/documents/${document._id}/file-content`;
+    downloadUrl = pdfUrl; // For downloading, the browser will handle it via Content-Disposition or download attribute
+    console.log('[DocumentDetail] Constructed PDF API URL (for viewing/downloading):', pdfUrl);
+  }
 
   useEffect(() => {
-    console.log('DocumentDetail mounted for ID:', id);
-    // Simulate API call
-    const fetchDocumentDetail = async () => {
-      setLoading(true);
-      setError('');
-      try {
-        // ---- BẮT ĐẦU PHẦN GIẢ LẬP API ----
-        await new Promise(resolve => setTimeout(resolve, 500));
-        if (id === mockDocument._id) {
-          setDocument(mockDocument);
-        } else {
-          console.warn(`Mock data ID (${mockDocument._id}) không khớp với ID yêu cầu (${id}). Sử dụng mock data mặc định.`);
-          setDocument(mockDocument);
-        }
-        // ---- KẾT THÚC PHẦN GIẢ LẬP API ----
-      } catch (e) {
-        console.error('Error fetching document details:', e);
-        setError(e.message || 'Đã xảy ra lỗi khi tải thông tin tài liệu.');
-      }
-      setLoading(false);
-    };
-
-    fetchDocumentDetail();
-  }, [id]);
+    console.log('[DocumentDetail] useEffect triggered. ID:', id);
+    if (id) {
+      fetchDocumentById(id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]); // Temporarily removed fetchDocumentById from deps for testing
 
   if (loading) {
+    console.log('[DocumentDetail] Displaying loading state');
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '80vh' }}>
         <CircularProgress />
@@ -91,6 +63,7 @@ const DocumentDetail = () => {
   }
 
   if (error) {
+    console.log('[DocumentDetail] Displaying error state:', error);
     return (
       <Container maxWidth="md" sx={{ py: 4, textAlign: 'center' }}>
         <Typography color="error" variant="h6">{error}</Typography>
@@ -102,9 +75,10 @@ const DocumentDetail = () => {
   }
 
   if (!document) {
+    console.log('[DocumentDetail] Displaying no document state (or initial loading before first fetch completes)');
     return (
       <Container maxWidth="md" sx={{ py: 4, textAlign: 'center' }}>
-        <Typography variant="h6">Không tìm thấy thông tin tài liệu.</Typography>
+        <Typography variant="h6">Không tìm thấy thông tin tài liệu hoặc đang tải...</Typography>
         <Button component={RouterLink} to="/documents" variant="outlined" sx={{ mt: 2 }}>
           Quay lại Danh sách
         </Button>
@@ -112,55 +86,87 @@ const DocumentDetail = () => {
     );
   }
 
+  console.log('[DocumentDetail] Rendering document details with document object:', document);
+
+  const getStatusChip = (status) => {
+    switch (status) {
+      case 'verified':
+        return { icon: <CheckCircleOutlineIcon />, label: 'Đã xác thực', color: 'success' };
+      case 'pending':
+        return { icon: <AccessTimeIcon />, label: 'Đang chờ xử lý', color: 'warning' };
+      case 'draft':
+        return { icon: <DescriptionIcon />, label: 'Bản nháp', color: 'default' };
+      default:
+        return { icon: <DescriptionIcon />, label: String(status), color: 'default' }; // Ensure status is string
+    }
+  };
+  const statusChip = getStatusChip(document.status);
+
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
-      <Button 
-        component={RouterLink} 
-        to="/documents" 
-        startIcon={<ArrowBackIcon />} 
+      <Button
+        component={RouterLink}
+        to="/documents"
+        startIcon={<ArrowBackIcon />}
         sx={{ mb: 3 }}
       >
         Danh sách Tài liệu
       </Button>
 
       <Paper elevation={3} sx={{ p: { xs: 2, md: 4 }, borderRadius: 2 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
-          <Box>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3, flexDirection: { xs: 'column', md: 'row' } }}>
+          <Box sx={{ mb: { xs: 2, md: 0 } }}>
             <Typography variant="h4" component="h1" gutterBottom sx={{ fontWeight: 600 }}>
-              {document.title}
+              {document.title || 'N/A'} {/* Added fallback */}
             </Typography>
-            <Chip 
-              icon={document.status === 'signed' ? <CheckCircleOutlineIcon /> : document.status === 'pending_signature' ? <AccessTimeIcon /> : <DescriptionIcon />}
-              label={`Trạng thái: ${document.status.replace('_', ' ')}`}
-              color={document.status === 'signed' ? 'success' : document.status === 'pending_signature' ? 'warning' : 'default'}
+            <Chip
+              icon={statusChip.icon}
+              label={`Trạng thái: ${statusChip.label}`}
+              color={statusChip.color}
               size="small"
             />
           </Box>
-          <Box sx={{ display: 'flex', gap: 1, flexDirection: { xs: 'column', sm: 'row'} }}>
-            {document.status === 'pending_signature' && (
-                <Button 
-                    variant="contained" 
-                    startIcon={<SignIcon />} 
-                    onClick={() => navigate(`/documents/${document._id}/sign`)}
-                >
-                    Ký Tài Liệu
-                </Button>
+          <Box sx={{ display: 'flex', gap: 1, flexDirection: { xs: 'column', sm: 'row' } }}>
+            {document.status === 'pending' && (
+              <Button
+                variant="contained"
+                startIcon={<SignIcon />}
+                onClick={() => navigate(`/documents/${document._id}/sign`)}
+              >
+                Ký Tài Liệu
+              </Button>
             )}
-            <Button 
-                variant="outlined" 
-                startIcon={<VerifyIcon />} 
-                onClick={() => navigate(`/documents/${document._id}/verify`)}
+            <Button
+              variant="outlined"
+              startIcon={<VerifyIcon />}
+              onClick={() => navigate(`/documents/${document._id}/verify`)}
             >
-                Xác Thực
+              Xác Thực
             </Button>
-             <Button variant="outlined" startIcon={<DownloadIcon />} href={document.fileUrl} target="_blank">
+            <Button variant="outlined" startIcon={<DownloadIcon />} href={downloadUrl || '#'} download={document.fileName || true}>
               Tải xuống
             </Button>
           </Box>
         </Box>
-        
+
+        {/* Section to display PDF via API endpoint */}
+        {pdfUrl && (
+          <Box sx={{ my: 4, p: 2, border: '1px solid #ddd', borderRadius: 1, backgroundColor: '#f9f9f9' }}>
+            <Typography variant="h6" gutterBottom>Nội dung Tài liệu</Typography>
+            <iframe 
+              src={pdfUrl} 
+              width="100%" 
+              height="600px" 
+              title={document.title || 'Document Viewer'}
+              style={{ border: '1px solid #ccc' }}
+            >
+              Trình duyệt của bạn không hỗ trợ xem PDF trực tiếp. Bạn có thể <a href={downloadUrl || '#'} download={document.fileName || true}>tải về tại đây</a>.
+            </iframe>
+          </Box>
+        )}
+
         <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-          {document.description}
+          {document.content || 'Không có mô tả.'} {/* Added fallback */}
         </Typography>
 
         <Grid container spacing={3}>
@@ -169,55 +175,43 @@ const DocumentDetail = () => {
             <List dense>
               <ListItem>
                 <ListItemIcon><PersonIcon /></ListItemIcon>
-                <ListItemText primary="Người tạo" secondary={document.createdBy} />
+                <ListItemText primary="Người tạo (ID)" secondary={document.creatorId || 'Không rõ'} />
               </ListItem>
               <ListItem>
                 <ListItemIcon><AccessTimeIcon /></ListItemIcon>
-                <ListItemText primary="Ngày tạo" secondary={new Date(document.createdAt).toLocaleString()} />
+                <ListItemText primary="Ngày tạo" secondary={document.createdAt ? new Date(document.createdAt).toLocaleString() : 'N/A'} /> {/* Added fallback */}
               </ListItem>
               <ListItem>
                 <ListItemIcon><AccessTimeIcon /></ListItemIcon>
-                <ListItemText primary="Cập nhật lần cuối" secondary={new Date(document.updatedAt).toLocaleString()} />
+                <ListItemText primary="Cập nhật lần cuối" secondary={document.updatedAt ? new Date(document.updatedAt).toLocaleString() : 'N/A'} /> {/* Added fallback */}
               </ListItem>
             </List>
           </Grid>
 
           <Grid item xs={12} md={6}>
-            <Typography variant="h6" gutterBottom>Người tham gia</Typography>
-            <List dense>
-              {document.participants.map((p, index) => (
-                <ListItem key={index}>
-                  <ListItemIcon>
-                    {p.hasSigned ? <CheckCircleOutlineIcon color="success" /> : p.role === 'signer' ? <FingerprintIcon color="warning"/> : <PersonIcon />}
-                  </ListItemIcon>
-                  <ListItemText 
-                    primary={`${p.email} (${p.role})`} 
-                    secondary={p.hasSigned ? `Đã ký lúc: ${new Date(p.signedAt).toLocaleString()}` : (p.role === 'signer' ? 'Chưa ký' : 'Chỉ xem')}
-                  />
-                </ListItem>
-              ))}
-            </List>
-          </Grid>
-
-          <Grid item xs={12}>
-            <Typography variant="h6" gutterBottom sx={{mt: 2}}>Lịch sử tài liệu (Audit Trail)</Typography>
-            <List dense>
-              {document.auditTrail.map((entry, index) => (
-                <ListItem key={index}>
-                  <ListItemIcon><SecurityIcon fontSize="small" /></ListItemIcon>
-                  <ListItemText 
-                    primary={entry.event} 
-                    secondary={`Bởi: ${entry.user} - Lúc: ${new Date(entry.timestamp).toLocaleString()}`}
-                  />
-                </ListItem>
-              ))}
-            </List>
+            <Typography variant="h6" gutterBottom>Người ký</Typography>
+            {document.signers && document.signers.length > 0 ? (
+              <List dense>
+                {document.signers.map((signer, index) => (
+                  <ListItem key={index}>
+                    <ListItemIcon>
+                      <PersonIcon />
+                    </ListItemIcon>
+                    <ListItemText
+                      primary={`User ID: ${signer.userId || 'Không rõ'}`}
+                      secondary={`Vai trò: ${signer.role || 'N/A'}`}
+                    />
+                  </ListItem>
+                ))}
+              </List>
+            ) : (
+              <Typography variant="body2" color="text.secondary">Không có người ký nào được chỉ định.</Typography>
+            )}
           </Grid>
         </Grid>
-
       </Paper>
     </Container>
   );
 };
 
-export default DocumentDetail; 
+export default DocumentDetail;

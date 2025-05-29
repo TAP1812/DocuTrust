@@ -98,7 +98,7 @@ const Dashboard = () => {
       text: 'Tải lên tài liệu', 
       onClick: () => { 
         console.log('Clicked: Tải lên tài liệu - Navigating to /documents/upload');
-        navigate('/documents/upload');
+        navigate('/documents/create');
       }
     },
     { 
