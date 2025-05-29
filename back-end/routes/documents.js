@@ -185,6 +185,30 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+// Get file content of a document
+router.get('/:id/file-content', async (req, res) => {
+  try {
+    const doc = await Document.findById(req.params.id);
+    if (!doc) {
+      return res.status(404).json({ message: 'Document not found' });
+    }
+
+    // Get absolute path to the file
+    const filePath = path.resolve(__dirname, '..', doc.filePath);
+    
+    // Check if file exists
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ message: 'File not found' });
+    }
+
+    // Send the file
+    res.sendFile(filePath);
+  } catch (error) {
+    console.error('Error serving file:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 // Ký tài liệu (chỉ cho phép user có role 'signer')
 router.post('/:id/sign', async (req, res) => {
   try {
