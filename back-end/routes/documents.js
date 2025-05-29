@@ -4,6 +4,7 @@ const multer = require('multer');
 const path = require('path');
 const mongoose = require('mongoose');
 const fs = require('fs');
+const { ethers } = require('ethers');
 
 // Tạo thư mục uploads nếu chưa có
 const uploadDir = path.join(__dirname, '../uploads');
@@ -209,18 +210,18 @@ router.get('/:id/file-content', async (req, res) => {
   }
 });
 
-// Ký tài liệu (chỉ cho phép user có role 'signer')
+// Ký tài liệu (backend sẽ tạo signature và publicKey từ privateKey nhận được)
 router.post('/:id/sign', async (req, res) => {
   try {
-    const { userId, signature, publicKey } = req.body;
-    if (!userId || !signature || !publicKey) {
-      return res.status(400).json({ message: 'Missing fields' });
+    const { userId, privateKey } = req.body;
+
+    if (!userId || !privateKey) {
+      return res.status(400).json({ message: 'Missing fields: userId and privateKey are required.' });
     }
 
     const doc = await Document.findById(req.params.id);
     if (!doc) return res.status(404).json({ message: 'Document not found' });
 
-  // Convert userId to ObjectId if it's not already
     const userObjectId = mongoose.Types.ObjectId.isValid(userId) 
       ? mongoose.Types.ObjectId(userId)
       : null;
@@ -229,35 +230,72 @@ router.post('/:id/sign', async (req, res) => {
       return res.status(400).json({ message: 'Invalid user ID format' });
     }
 
-    const signer = doc.signers.find(s => 
+    // Kiểm tra xem user có quyền ký tài liệu này không
+    const signerInDocument = doc.signers.find(s => 
       s.userId.equals(userObjectId) && s.role === 'signer'
     );
-    
-    if (!signer) {
+    if (!signerInDocument) {
       return res.status(403).json({ message: 'User is not allowed to sign this document' });
     }
 
-    if (doc.signatures.find(s => s.userId.equals(userObjectId))) {
-      return res.status(409).json({ message: 'User already signed' });
+    // Kiểm tra xem user đã ký chưa
+    if (doc.signatures.find(s => s.userId === userObjectId.toString())) {
+      return res.status(409).json({ message: 'User already signed this document' });
     }
 
-    doc.signatures.push({ userId, signature, publicKey, signedAt: new Date() });
+    let wallet;
+    let publicKey;
+    let signature;
 
-    // Đánh dấu hoàn thành nếu tất cả signer đã ký
-    const allSigned = doc.signers
-      .filter(s => s.role === 'signer')
-      .every(s => doc.signatures.find(sig => sig.userId === s.userId));
+    try {
+      // Tạo wallet từ privateKey để lấy publicKey và ký
+      wallet = new ethers.Wallet(privateKey);
+      publicKey = wallet.publicKey;
 
-    if (allSigned) {
+      // Dữ liệu cần ký là hash của tài liệu
+      // Đảm bảo doc.hash là một chuỗi hex hợp lệ (ví dụ: "0x...")
+      if (!doc.hash || !ethers.utils.isHexString(doc.hash)) {
+        return res.status(400).json({ message: 'Invalid or missing document hash for signing.' });
+      }
+      const messageToSign = ethers.utils.arrayify(doc.hash); // Chuyển hash (hex string) thành mảng byte
+      
+      // Ký message (ethers.js signMessage sẽ tự băm message theo EIP-191)
+      signature = await wallet.signMessage(messageToSign);
+
+    } catch (e) {
+      console.error('Error during key/signature generation:', e);
+      return res.status(400).json({ message: 'Invalid private key or error generating signature. Details: ' + e.message });
+    }
+
+    // Thêm chữ ký vào tài liệu
+    doc.signatures.push({ 
+      userId: userObjectId.toString(), 
+      signature: signature, 
+      publicKey: publicKey, 
+      signedAt: new Date() 
+    });
+
+    // Kiểm tra xem tất cả người ký đã ký chưa để cập nhật status
+    const allSignersInDoc = doc.signers.filter(s => s.role === 'signer');
+    const allHaveSigned = allSignersInDoc.every(s => 
+        doc.signatures.find(sig => sig.userId === s.userId.toString())
+    );
+
+    if (allHaveSigned) {
       doc.status = 'completed';
       doc.completedAt = new Date();
     }
 
     await doc.save();
-    res.json({ message: 'Signed successfully', document: doc });
+    res.json({ 
+      message: 'Document signed successfully by backend.', 
+      document: doc 
+    });
+
   } catch (error) {
     console.error('Sign document error:', error);
-    res.status(500).json({ message: 'Không thể ký tài liệu' });
+    // Tránh gửi chi tiết lỗi nhạy cảm ra client trong môi trường production
+    res.status(500).json({ message: 'Server error while signing document.' });
   }
 });
 

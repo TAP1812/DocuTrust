@@ -88,6 +88,43 @@ export const useDocuments = () => {
     }
   }, []);
 
+  // Hàm signDocument giờ sẽ nhận privateKey từ component và gửi lên backend
+  const signDocument = useCallback(async (documentId, privateKey) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const user = JSON.parse(localStorage.getItem('user'));
+      if (!user || !user.id) {
+        setError('User not found. Please log in.');
+        setLoading(false);
+        return false; 
+      }
+      const userId = user.id;
+
+      if (!privateKey) {
+        setError('Private key is required to sign the document.');
+        setLoading(false);
+        return false;
+      }
+
+      // Backend sẽ tạo signature và publicKey từ privateKey này
+      await api.post(`/api/documents/${documentId}/sign`, { 
+        userId, 
+        privateKey // Gửi privateKey lên backend
+      }); 
+      
+      // Re-fetch a document to get its updated status
+      await fetchDocumentById(documentId); 
+      return true; // Indicate success
+    } catch (err) {
+      console.error('[useDocuments] Error signing document:', err);
+      setError(err.response?.data?.message || 'Không thể ký tài liệu');
+      return false; // Indicate failure
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchDocumentById]);
+
   return {
     documents,
     loading,
@@ -96,6 +133,7 @@ export const useDocuments = () => {
     deleteDocument,
     shareDocument,
     currentDocument,
-    fetchDocumentById
+    fetchDocumentById,
+    signDocument
   };
 }; 
