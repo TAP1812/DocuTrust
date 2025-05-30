@@ -9,6 +9,7 @@ import VerifyDocument from './pages/VerifyDocument.js';
 import Dashboard from './pages/Dashboard.jsx';
 import Profile from './pages/Profile.js';
 import DocumentDetail from './pages/DocumentDetail.js';
+import TestClientSign from './pages/TestClientSign.js';
 
 const AppRoutes = () => {
   return (
@@ -27,6 +28,7 @@ const AppRoutes = () => {
 
       <Route path="/dashboard" element={<Dashboard />} />
       <Route path="/profile" element={<Profile />} />
+      <Route path="/test-client-sign" element={<TestClientSign />} />
       <Route path="*" element={<Navigate to="/login" />} /> {/* Or to a NotFound page */}
     </Routes>
   );
