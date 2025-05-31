@@ -21,7 +21,6 @@ const documentSchema = new mongoose.Schema({
   signatures: [{ 
     userId: String,  // Khớp với signers.userId
     signature: String, 
-    publicKey: String, 
     signedAt: Date 
   }],
   status: String,

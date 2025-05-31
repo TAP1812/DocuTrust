@@ -6,7 +6,6 @@ function TestClientSign() {
   const [documentHash, setDocumentHash] = useState('');
   const [privateKeyHex, setPrivateKeyHex] = useState('');
   const [signature, setSignature] = useState('');
-  const [publicKey, setPublicKey] = useState('');
   const [feedback, setFeedback] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -76,13 +75,55 @@ function TestClientSign() {
       const sig = await wallet.signMessage(messageBytes);
       
       setSignature(sig);
-      setPublicKey(wallet.publicKey);
-      setFeedback('Ký thành công bằng Private Key Hex! Chữ ký và Public Key đã được tạo.');
+      setFeedback('Ký thành công bằng Private Key Hex! Chữ ký đã được tạo.');
     } catch (error) {
       console.error('Lỗi khi ký bằng Private Key Hex:', error);
       setFeedback(`Lỗi khi ký: ${error.message}. Hãy chắc chắn Private Key (Hex) hợp lệ.`);
       setSignature('');
-      setPublicKey('');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSubmitSignature = async () => {
+    if (!documentId || !signature) {
+      setFeedback('Thiếu Document ID hoặc Chữ ký để gửi.');
+      return;
+    }
+
+    setIsLoading(true);
+    setFeedback('Đang gửi chữ ký lên server (qua API /sign)...');
+    try {
+      const user = JSON.parse(localStorage.getItem('user'));
+      if (!user || !user.id) {
+        setFeedback('Không tìm thấy thông tin người dùng (localStorage). Vui lòng đăng nhập.');
+        setIsLoading(false);
+        return;
+      }
+      const userId = user.id;
+
+      const response = await fetch(`http://localhost:3001/api/documents/${documentId}/sign`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId,
+          signature,
+        }),
+        credentials: 'include'
+      });
+
+      const responseData = await response.json();
+      if (!response.ok) {
+        throw new Error(responseData.message || 'Lỗi từ server khi lưu chữ ký.');
+      }
+
+      setFeedback(`Lưu chữ ký thành công: ${responseData.message}`);
+
+    } catch (error) {
+      console.error('Lỗi khi gửi chữ ký (API /sign):', error);
+      setFeedback(`Lỗi khi gửi chữ ký: ${error.message}`);
     } finally {
       setIsLoading(false);
     }
@@ -117,11 +158,13 @@ function TestClientSign() {
         {isLoading ? 'Đang xử lý...' : '1. Ký Tài Liệu (Với Key Hex)'}
       </button>
 
-      {signature && publicKey && (
+      {signature && (
         <div style={{ marginTop: '20px', padding: '10px', border: '1px solid #eee', borderRadius: '4px', backgroundColor: '#f9f9f9' }}>
           <h4>Thông tin chữ ký (Client-side):</h4>
-          <p style={{ wordBreak: 'break-all' }}><strong>Public Key:</strong> {publicKey}</p>
           <p style={{ wordBreak: 'break-all' }}><strong>Signature:</strong> {signature}</p>
+          <button onClick={handleSubmitSignature} disabled={isLoading || !signature} style={{ padding: '10px 20px', marginTop: '10px', backgroundColor: '#28a745', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+            {isLoading ? 'Đang gửi...' : '2. Gửi Chữ Ký Lên Server (API /sign)'}
+          </button>
         </div>
       )}
 

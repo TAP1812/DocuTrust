@@ -3,13 +3,13 @@ const crypto = require('crypto');
 const multer = require('multer');
 const path = require('path');
 const mongoose = require('mongoose');
-const fs = require('fs');
+const fs = require('fs').promises;
 const { ethers } = require('ethers');
 
 // Tạo thư mục uploads nếu chưa có
 const uploadDir = path.join(__dirname, '../uploads');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir);
+if (!require('fs').existsSync(uploadDir)) {
+  require('fs').mkdirSync(uploadDir);
 }
 
 // Cấu hình multer
@@ -198,7 +198,7 @@ router.get('/:id/file-content', async (req, res) => {
     const filePath = path.resolve(__dirname, '..', doc.filePath);
     
     // Check if file exists
-    if (!fs.existsSync(filePath)) {
+    if (!require('fs').existsSync(filePath)) {
       return res.status(404).json({ message: 'File not found' });
     }
 
@@ -210,68 +210,52 @@ router.get('/:id/file-content', async (req, res) => {
   }
 });
 
-// Ký tài liệu (backend sẽ tạo signature và publicKey từ privateKey nhận được)
+// Ký tài liệu (CLIENT sẽ cung cấp signature, server chỉ lưu)
 router.post('/:id/sign', async (req, res) => {
   try {
-    const { userId, privateKey } = req.body;
+    // Thay vì privateKey, nhận signature trực tiếp từ client
+    const { userId, signature } = req.body;
 
-    if (!userId || !privateKey) {
-      return res.status(400).json({ message: 'Missing fields: userId and privateKey are required.' });
+    if (!userId || !signature) {
+      return res.status(400).json({ message: 'Thiếu userId hoặc signature.' });
     }
 
     const doc = await Document.findById(req.params.id);
-    if (!doc) return res.status(404).json({ message: 'Document not found' });
+    if (!doc) return res.status(404).json({ message: 'Tài liệu không tồn tại.' });
 
     const userObjectId = mongoose.Types.ObjectId.isValid(userId) 
-      ? mongoose.Types.ObjectId(userId)
+      ? new mongoose.Types.ObjectId(userId)
       : null;
       
     if (!userObjectId) {
-      return res.status(400).json({ message: 'Invalid user ID format' });
+      return res.status(400).json({ message: 'Định dạng userId không hợp lệ.' });
     }
 
     // Kiểm tra xem user có quyền ký tài liệu này không
-    const signerInDocument = doc.signers.find(s => 
-      s.userId.equals(userObjectId) && s.role === 'signer'
-    );
-    if (!signerInDocument) {
-      return res.status(403).json({ message: 'User is not allowed to sign this document' });
+    const isCreator = doc.creatorId.equals(userObjectId);
+    const designatedSignerEntry = doc.signers.find(s => s.userId.equals(userObjectId) && s.role === 'signer');
+
+    if (!isCreator && !designatedSignerEntry) {
+      const userEntryInSigners = doc.signers.find(s => s.userId.equals(userObjectId));
+      let denyMessage = 'Người dùng không có quyền ký tài liệu này.';
+
+      if (userEntryInSigners) { // User is in the list, but not as a 'signer' (and not creator)
+        denyMessage = `Bạn có vai trò '${userEntryInSigners.role}' trong tài liệu này. Chỉ người tạo hoặc người có vai trò 'signer' mới được ký.`;
+      } else { // User is not creator AND not in the signers list at all
+        denyMessage = 'Bạn không phải là người tạo tài liệu này và cũng không có trong danh sách người được chỉ định để ký.';
+      }
+      return res.status(403).json({ message: denyMessage });
     }
 
     // Kiểm tra xem user đã ký chưa
     if (doc.signatures.find(s => s.userId === userObjectId.toString())) {
-      return res.status(409).json({ message: 'User already signed this document' });
+      return res.status(409).json({ message: 'Người dùng đã ký tài liệu này rồi.' });
     }
 
-    let wallet;
-    let publicKey;
-    let signature;
-
-    try {
-      // Tạo wallet từ privateKey để lấy publicKey và ký
-      wallet = new ethers.Wallet(privateKey);
-      publicKey = wallet.publicKey;
-
-      // Dữ liệu cần ký là hash của tài liệu
-      // Đảm bảo doc.hash là một chuỗi hex hợp lệ (ví dụ: "0x...")
-      if (!doc.hash || !ethers.utils.isHexString(doc.hash)) {
-        return res.status(400).json({ message: 'Invalid or missing document hash for signing.' });
-      }
-      const messageToSign = ethers.utils.arrayify(doc.hash); // Chuyển hash (hex string) thành mảng byte
-      
-      // Ký message (ethers.js signMessage sẽ tự băm message theo EIP-191)
-      signature = await wallet.signMessage(messageToSign);
-
-    } catch (e) {
-      console.error('Error during key/signature generation:', e);
-      return res.status(400).json({ message: 'Invalid private key or error generating signature. Details: ' + e.message });
-    }
-
-    // Thêm chữ ký vào tài liệu
+    // Thêm chữ ký vào tài liệu (không có publicKey)
     doc.signatures.push({ 
       userId: userObjectId.toString(), 
-      signature: signature, 
-      publicKey: publicKey, 
+      signature: signature, // Chữ ký từ client
       signedAt: new Date() 
     });
 
@@ -288,46 +272,125 @@ router.post('/:id/sign', async (req, res) => {
 
     await doc.save();
     res.json({ 
-      message: 'Document signed successfully by backend.', 
+      message: 'Chữ ký từ client đã được lưu thành công.', 
       document: doc 
     });
 
   } catch (error) {
-    console.error('Sign document error:', error);
-    // Tránh gửi chi tiết lỗi nhạy cảm ra client trong môi trường production
-    res.status(500).json({ message: 'Server error while signing document.' });
+    console.error('Lỗi khi lưu chữ ký client (vào API /sign):', error);
+    res.status(500).json({ message: 'Lỗi server khi lưu chữ ký.', error: error.message });
   }
 });
 
 // Xác minh chữ ký tài liệu
 router.post('/:id/verify', async (req, res) => {
   try {
-    const doc = await Document.findById(req.params.id);
-    if (!doc) return res.status(404).json({ message: 'Document not found' });    // Populate user information for each signature
-    await doc.populate('signatures.userId');
-    
-    const results = doc.signatures.map(sig => {
+    const doc = await Document.findById(req.params.id).populate('signers.userId', 'email fullName');
+    if (!doc) {
+      return res.status(404).json({ message: 'Tài liệu không tìm thấy' });
+    }
+
+    let fileContentBytes;
+    let contentSource = '';
+
+    // Ưu tiên filePath nếu có
+    if (doc.filePath) {
+      const absoluteFilePath = path.isAbsolute(doc.filePath) ? doc.filePath : path.join(__dirname, '..', doc.filePath);
       try {
-        return {
-          userId: sig.userId._id, // get the ObjectId
-          email: sig.userId.email, // include email for display
-          valid: !!sig.signature,
-          signedAt: sig.signedAt
-        };
-      } catch {
-        return {
-          userId: sig.userId._id,
-          email: 'Unknown',
-          valid: false,
-          signedAt: sig.signedAt
-        };
+        const fileBuffer = await fs.readFile(absoluteFilePath);
+        fileContentBytes = ethers.toUtf8Bytes(fileBuffer.toString('utf8'));
+        contentSource = `filePath: ${doc.filePath}`;
+      } catch (fileError) {
+        console.error(`Lỗi đọc file từ filePath ${doc.filePath}:`, fileError);
+        if (doc.content) {
+          fileContentBytes = ethers.toUtf8Bytes(doc.content);
+          contentSource = 'doc.content (fallback do lỗi filePath)';
+        } else {
+          return res.status(500).json({ message: 'Không thể đọc nội dung tài liệu từ filePath và không có content dự phòng.', error: fileError.message });
+        }
       }
+    } else if (doc.content) {
+      fileContentBytes = ethers.toUtf8Bytes(doc.content);
+      contentSource = 'doc.content';
+    } else {
+      return res.status(400).json({ message: 'Không có nội dung tài liệu để xác minh (thiếu cả filePath và content).' });
+    }
+
+    if (!fileContentBytes) {
+        return res.status(500).json({ message: 'Không thể lấy được nội dung tài liệu để hash.' });
+    }
+
+    const documentHashUsedForVerification = ethers.keccak256(fileContentBytes);
+
+    const verificationResults = [];
+    if (!doc.signatures || doc.signatures.length === 0) {
+      return res.status(200).json({
+        message: 'Tài liệu chưa có chữ ký nào để xác minh.',
+        documentHashUsedForVerification,
+        originalSha256HashInDb: doc.hash,
+        verificationResults: [],
+        contentSource
+      });
+    }
+
+    for (const sig of doc.signatures) {
+      const verificationDetail = {
+        userId: sig.userId,
+        signedAt: sig.signedAt,
+        signatureUsed: sig.signature,
+        verified: false,
+        error: null,
+        signerInfo: null,
+        publicKeyUsed: null
+      };
+
+      try {
+        const user = await User.findById(sig.userId);
+        if (!user) {
+          verificationDetail.error = 'Không tìm thấy người dùng với ID này.';
+          verificationDetail.signerInfo = { userId: sig.userId, note: 'User not found' }; 
+          verificationResults.push(verificationDetail);
+          continue; 
+        }
+
+        verificationDetail.signerInfo = { 
+            email: user.email, 
+            fullName: user.fullName 
+        };
+        verificationDetail.publicKeyUsed = user.publicKey;
+
+        if (!user.publicKey) {
+            verificationDetail.error = 'Người dùng này không có publicKey được lưu trữ.';
+            verificationResults.push(verificationDetail);
+            continue;
+        }
+
+        const recoveredAddress = ethers.verifyMessage(documentHashUsedForVerification, sig.signature);
+        const expectedAddress = ethers.computeAddress(user.publicKey);
+
+        if (recoveredAddress.toLowerCase() === expectedAddress.toLowerCase()) {
+          verificationDetail.verified = true;
+        } else {
+          verificationDetail.error = 'Chữ ký không khớp với publicKey của người dùng.';
+        }
+      } catch (e) {
+        console.error(`Lỗi khi xác minh chữ ký cho user ${sig.userId}:`, e);
+        verificationDetail.error = `Lỗi trong quá trình xác minh: ${e.message}`;
+      }
+      verificationResults.push(verificationDetail);
+    }
+
+    res.status(200).json({
+      message: 'Hoàn tất quá trình xác minh chữ ký.',
+      documentHashUsedForVerification,
+      originalSha256HashInDb: doc.hash,
+      verificationResults,
+      contentSource
     });
 
-    res.json({ hash: doc.hash, verifyResults: results });
   } catch (error) {
-    console.error('Verify document error:', error);
-    res.status(500).json({ message: 'Không thể xác minh tài liệu' });
+    console.error('Lỗi trong API xác minh:', error);
+    res.status(500).json({ message: 'Lỗi server khi xác minh tài liệu', error: error.message });
   }
 });
 
