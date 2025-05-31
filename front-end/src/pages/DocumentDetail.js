@@ -47,6 +47,12 @@ const DocumentDetail = () => {
   const [isSigningLoading, setIsSigningLoading] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
 
+  // States for verification
+  const [showVerifyModal, setShowVerifyModal] = useState(false);
+  const [verificationResults, setVerificationResults] = useState(null);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [verifyError, setVerifyError] = useState('');
+
   useEffect(() => {
     try {
       const userString = localStorage.getItem('user');
@@ -239,6 +245,47 @@ const DocumentDetail = () => {
     }
   };
 
+  const handleVerifySignatures = async () => {
+    if (!document || !document._id) {
+      setVerifyError('Không tìm thấy ID tài liệu để xác thực.');
+      setShowVerifyModal(true); // Show modal to display this error
+      return;
+    }
+
+    setIsVerifying(true);
+    setVerifyError('');
+    setVerificationResults(null);
+    setShowVerifyModal(true); // Show modal immediately with loading/status
+
+    try {
+      const response = await fetch(`http://localhost:3001/api/documents/${document._id}/verify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        // Không cần body cho API verify này
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Lỗi không xác định từ server khi xác thực.');
+      }
+      
+      setVerificationResults(data); // data should contain { message, documentHashUsedForVerification, verificationResults, contentSource }
+      // verifyError sẽ được để trống nếu thành công
+
+    } catch (error) {
+      console.error('Lỗi trong quá trình xác thực chữ ký:', error);
+      setVerifyError(`Lỗi: ${error.message}`);
+      setVerificationResults(null); // Xóa kết quả cũ nếu có lỗi mới
+    } finally {
+      setIsVerifying(false);
+      // setShowVerifyModal(true) đã được gọi ở đầu để modal hiển thị ngay cả khi có lỗi
+    }
+  };
+
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
       <Button
@@ -281,9 +328,10 @@ const DocumentDetail = () => {
             <Button
               variant="outlined"
               startIcon={<VerifyIcon />}
-              onClick={() => navigate(`/documents/${document._id}/verify`)}
+              onClick={() => handleVerifySignatures()}
+              disabled={isVerifying || !document || !document.signatures || document.signatures.length === 0}
             >
-              Xác Thực
+              {isVerifying ? 'Đang xác thực...' : 'Xác Thực Chữ Ký'}
             </Button>
             <Button variant="outlined" startIcon={<DownloadIcon />} href={downloadUrl || '#'} download={document.fileName || true}>
               Tải xuống
@@ -387,6 +435,70 @@ const DocumentDetail = () => {
           <Button onClick={handleSignAndSubmit} disabled={isSigningLoading} variant="contained">
             {isSigningLoading ? 'Đang xử lý...' : 'Tạo và Gửi Chữ Ký'}
           </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Verification Results Modal */}
+      <Dialog open={showVerifyModal} onClose={() => setShowVerifyModal(false)} maxWidth="md" fullWidth aria-labelledby="verify-results-dialog-title">
+        <DialogTitle id="verify-results-dialog-title">
+          Kết Quả Xác Thực Chữ Ký
+          {isVerifying && <CircularProgress size={24} sx={{ ml: 2 }} />}
+        </DialogTitle>
+        <DialogContent dividers>
+          {verifyError && (
+            <Typography color="error" sx={{ mb: 2 }}>{verifyError}</Typography>
+          )}
+          {verificationResults && !isVerifying && (
+            <Box>
+              <Typography variant="subtitle1" gutterBottom>
+                <strong>Nguồn nội dung đã dùng để xác thực:</strong> {verificationResults.contentSource}
+              </Typography>
+              <Typography variant="subtitle1" gutterBottom sx={{wordBreak: 'break-all'}}>
+                <strong>Hash tài liệu (Keccak256) đã dùng để xác thực:</strong> {verificationResults.documentHashUsedForVerification}
+              </Typography>
+              <Typography variant="subtitle1" gutterBottom sx={{wordBreak: 'break-all'}}>
+                <strong>Hash tài liệu gốc (SHA256) trong DB:</strong> {document.hash} {/* Hiển thị hash gốc từ DB để so sánh nếu cần */}
+              </Typography>
+              <Typography variant="h6" sx={{ mt: 2, mb: 1 }}>Chi tiết từng chữ ký:</Typography>
+              {verificationResults.verificationResults && verificationResults.verificationResults.length > 0 ? (
+                <List dense>
+                  {verificationResults.verificationResults.map((result, index) => (
+                    <ListItem key={index} divider sx={{ mb: 1, p:1, border: '1px solid #eee', borderRadius: '4px', alignItems: 'flex-start' }}>
+                      <ListItemIcon sx={{mr:1, mt:1}}>
+                        {result.verified ? 
+                          <CheckCircleOutlineIcon color="success" /> : 
+                          <FingerprintIcon color="error" />
+                        }
+                      </ListItemIcon>
+                      <ListItemText 
+                        primaryTypographyProps={{fontWeight: 'bold'}}
+                        primary={
+                          `Người ký: ${result.signerInfo?.fullName || 'N/A'} (${result.signerInfo?.email || result.userId}) - Trạng thái: ${result.verified ? 'Hợp lệ' : 'KHÔNG HỢP LỆ'}`
+                        }
+                        secondaryTypographyProps={{component: 'div'}}
+                        secondary={
+                          <Box sx={{mt: 0.5}}>
+                            <Typography variant="body2" sx={{wordBreak: 'break-all'}}>Chữ ký: {result.signatureUsed}</Typography>
+                            <Typography variant="body2" sx={{wordBreak: 'break-all'}}>Public Key đã dùng: {result.publicKeyUsed || 'N/A'}</Typography>
+                            <Typography variant="body2">Thời gian ký: {result.signedAt ? new Date(result.signedAt).toLocaleString() : 'N/A'}</Typography>
+                            {result.error && <Typography variant="body2" color="error">Lý do: {result.error}</Typography>}
+                          </Box>
+                        }
+                      />
+                    </ListItem>
+                  ))}
+                </List>
+              ) : (
+                <Typography>Không có chữ ký nào trong tài liệu này để hiển thị kết quả.</Typography>
+              )}
+            </Box>
+          )}
+          {isVerifying && !verificationResults && !verifyError && (
+            <DialogContentText>Đang tải kết quả xác thực...</DialogContentText>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowVerifyModal(false)}>Đóng</Button>
         </DialogActions>
       </Dialog>
 

@@ -365,7 +365,7 @@ router.post('/:id/verify', async (req, res) => {
             continue;
         }
 
-        const recoveredAddress = ethers.verifyMessage(documentHashUsedForVerification, sig.signature);
+        const recoveredAddress = ethers.verifyMessage(ethers.getBytes(documentHashUsedForVerification), sig.signature);
         const expectedAddress = ethers.computeAddress(user.publicKey);
 
         if (recoveredAddress.toLowerCase() === expectedAddress.toLowerCase()) {
