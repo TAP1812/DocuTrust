@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, Link as RouterLink, useNavigate } from 'react-router-dom';
 import {
   Container,
@@ -13,6 +13,13 @@ import {
   ListItemIcon,
   Chip,
   Grid,
+  Modal,
+  TextField,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
@@ -26,13 +33,36 @@ import {
   VerifiedUser as VerifyIcon,
 } from '@mui/icons-material';
 import { useDocuments } from '../hooks/useDocuments';
+import * as ethers from 'ethers';
 
 const DocumentDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { currentDocument: document, loading, error, fetchDocumentById } = useDocuments();
 
+  // States for client-side signing
+  const [showSignModal, setShowSignModal] = useState(false);
+  const [privateKeyHex, setPrivateKeyHex] = useState('');
+  const [feedbackMessage, setFeedbackMessage] = useState('');
+  const [isSigningLoading, setIsSigningLoading] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
+
+  useEffect(() => {
+    try {
+      const userString = localStorage.getItem('user');
+      if (userString) {
+        const userData = JSON.parse(userString);
+        // Assuming user object has an 'id' or '_id' field
+        setCurrentUser({ id: userData.id || userData._id }); 
+      }
+    } catch (e) {
+      console.error("Failed to parse user from localStorage", e);
+      setCurrentUser(null);
+    }
+  }, []);
+
   console.log('[DocumentDetail] Component rendered. Loading:', loading, 'Error:', error, 'Document from hook:', document);
+  console.log('[DocumentDetail] Current User:', currentUser);
 
   // Construct PDF URL to point to the new backend API endpoint
   let pdfUrl = null;
@@ -87,6 +117,7 @@ const DocumentDetail = () => {
   }
 
   console.log('[DocumentDetail] Rendering document details with document object:', document);
+  console.log('[DocumentDetail] Signatures on document:', document.signatures);
 
   const getStatusChip = (status) => {
     switch (status) {
@@ -101,6 +132,112 @@ const DocumentDetail = () => {
     }
   };
   const statusChip = getStatusChip(document.status);
+
+  // Determine if current user can sign
+  let canSign = false;
+  let alreadySigned = false;
+  if (currentUser && document && document.signers) {
+    const userIdStr = currentUser.id?.toString(); // Ensure it's a string for comparison if needed
+
+    // Check if already signed
+    if (document.signatures && Array.isArray(document.signatures)) {
+        alreadySigned = document.signatures.some(sig => sig.userId && sig.userId.toString() === userIdStr);
+    }
+    console.log(`[DocumentDetail] User ${userIdStr} already signed: ${alreadySigned}`);
+
+    // Check if creator
+    const isCreator = document.creatorId?.toString() === userIdStr;
+    console.log(`[DocumentDetail] User ${userIdStr} is creator: ${isCreator}`);
+
+    // Check if designated signer
+    const isDesignatedSigner = document.signers.some(
+      s => s.userId?.toString() === userIdStr && s.role === 'signer'
+    );
+    console.log(`[DocumentDetail] User ${userIdStr} is designated signer: ${isDesignatedSigner}`);
+
+    if (document.status === 'pending' && !alreadySigned && (isCreator || isDesignatedSigner)) {
+      canSign = true;
+    }
+    console.log(`[DocumentDetail] User ${userIdStr} can sign: ${canSign} (status: ${document.status}, alreadySigned: ${alreadySigned}, isCreator: ${isCreator}, isDesignatedSigner: ${isDesignatedSigner})`);
+  }
+
+  const handleSignAndSubmit = async () => {
+    if (!privateKeyHex) {
+      setFeedbackMessage('Vui lòng nhập Private Key (Hex) của bạn.');
+      return;
+    }
+    if (!ethers.isHexString(privateKeyHex) || privateKeyHex.length !== 66) {
+      setFeedbackMessage('Private Key (Hex) không hợp lệ. Phải là một chuỗi hex 0x... 66 ký tự.');
+      return;
+    }
+    if (!currentUser || !currentUser.id) {
+      setFeedbackMessage('Không thể xác định người dùng. Vui lòng thử tải lại trang.');
+      return;
+    }
+
+    setIsSigningLoading(true);
+    setFeedbackMessage('Đang xử lý chữ ký...');
+
+    try {
+      // 1. Fetch document content
+      setFeedbackMessage('Đang lấy nội dung tài liệu để hash...');
+      const fileContentResponse = await fetch(`http://localhost:3001/api/documents/${id}/file-content`, {
+        method: 'GET',
+        credentials: 'include',
+      });
+
+      if (!fileContentResponse.ok) {
+        let errorMsg = 'Không thể lấy nội dung tài liệu để ký.';
+        try { const errorData = await fileContentResponse.json(); errorMsg = errorData.message || errorMsg; } catch (e) { /* ignore */ }
+        throw new Error(errorMsg);
+      }
+      
+      const fileContentText = await fileContentResponse.text();
+      if (typeof fileContentText !== 'string') {
+        throw new Error('Nội dung tài liệu nhận được không phải là chuỗi.');
+      }
+
+      // 2. Calculate Keccak256 Hash
+      const contentBytes = ethers.toUtf8Bytes(fileContentText);
+      const documentHashToSign = ethers.keccak256(contentBytes);
+      setFeedbackMessage(`Đã tính hash tài liệu: ${documentHashToSign}. Đang tạo chữ ký...`);
+
+      // 3. Create Signature
+      const wallet = new ethers.Wallet(privateKeyHex);
+      const signature = await wallet.signMessage(ethers.getBytes(documentHashToSign)); // ethers.getBytes for v6
+      setFeedbackMessage('Chữ ký đã được tạo. Đang gửi lên server...');
+
+      // 4. Submit Signature
+      const submitResponse = await fetch(`http://localhost:3001/api/documents/${id}/sign`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: currentUser.id,
+          signature: signature,
+        }),
+        credentials: 'include',
+      });
+
+      const submitData = await submitResponse.json();
+      if (!submitResponse.ok) {
+        throw new Error(submitData.message || 'Lỗi từ server khi lưu chữ ký.');
+      }
+
+      setFeedbackMessage(`Ký thành công! ${submitData.message || 'Chữ ký đã được lưu.'}`);
+      await fetchDocumentById(id); // Refresh document details
+      setTimeout(() => { // Give user time to read success message
+        setShowSignModal(false);
+      }, 2000);
+
+    } catch (error) {
+      console.error('Lỗi trong quá trình ký và gửi:', error);
+      setFeedbackMessage(`Lỗi: ${error.message}`);
+    } finally {
+      setIsSigningLoading(false);
+    }
+  };
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
@@ -127,13 +264,18 @@ const DocumentDetail = () => {
             />
           </Box>
           <Box sx={{ display: 'flex', gap: 1, flexDirection: { xs: 'column', sm: 'row' } }}>
-            {document.status === 'pending' && (
+            {canSign && (
               <Button
                 variant="contained"
                 startIcon={<SignIcon />}
-                onClick={() => navigate(`/documents/${document._id}/sign`)}
+                onClick={() => {
+                  setFeedbackMessage(''); // Clear previous messages
+                  setPrivateKeyHex(''); // Clear previous key
+                  setShowSignModal(true);
+                }}
+                disabled={isSigningLoading}
               >
-                Ký Tài Liệu
+                {isSigningLoading ? 'Đang xử lý...' : 'Ký Tài Liệu (Client-side)'}
               </Button>
             )}
             <Button
@@ -210,6 +352,44 @@ const DocumentDetail = () => {
           </Grid>
         </Grid>
       </Paper>
+
+      <Dialog open={showSignModal} onClose={() => setShowSignModal(false)} aria-labelledby="sign-document-dialog-title">
+        <DialogTitle id="sign-document-dialog-title">Ký Tài Liệu</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{mb: 2}}>
+            Để ký tài liệu này, vui lòng nhập Private Key (Hex) của bạn. 
+            Private Key sẽ chỉ được sử dụng trên trình duyệt của bạn để tạo chữ ký và không được gửi đi đâu.
+          </DialogContentText>
+          <TextField
+            autoFocus
+            margin="dense"
+            id="privateKeyHex"
+            label="Private Key (Hex)"
+            type="password"
+            fullWidth
+            variant="standard"
+            value={privateKeyHex}
+            onChange={(e) => setPrivateKeyHex(e.target.value)}
+            disabled={isSigningLoading}
+            helperText="Ví dụ: 0xabc123... (66 ký tự)"
+          />
+          {feedbackMessage && (
+            <Typography 
+              color={feedbackMessage.startsWith('Lỗi') ? "error" : "success.main"} 
+              sx={{mt: 2, fontSize: '0.9rem'}}
+            >
+              {feedbackMessage}
+            </Typography>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowSignModal(false)} disabled={isSigningLoading}>Hủy</Button>
+          <Button onClick={handleSignAndSubmit} disabled={isSigningLoading} variant="contained">
+            {isSigningLoading ? 'Đang xử lý...' : 'Tạo và Gửi Chữ Ký'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
     </Container>
   );
 };
