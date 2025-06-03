@@ -64,25 +64,28 @@ const DocumentCard = ({ document, onShare, onEdit, onDelete }) => {
     setAnchorEl(null);
   };
 
-  const getStatusColor = (status) => {
+  const getStatusDisplay = (status) => {
     switch (status) {
       case 'pending':
-        return {
-          bg: 'rgba(255, 152, 0, 0.1)',
-          color: '#f57c00'
+        return { 
+          label: 'Chờ ký', 
+          colorStyle: { bg: 'rgba(255, 152, 0, 0.1)', color: '#f57c00' } 
         };
       case 'signed':
-        return {
-          bg: 'rgba(76, 175, 80, 0.1)',
-          color: '#43a047'
+      case 'completed':
+        return { 
+          label: 'Đã ký', 
+          colorStyle: { bg: 'rgba(76, 175, 80, 0.1)', color: '#43a047' } 
         };
       default:
-        return {
-          bg: 'rgba(33, 150, 243, 0.1)',
-          color: '#1976d2'
+        return { 
+          label: status,
+          colorStyle: { bg: 'rgba(158, 158, 158, 0.1)', color: '#616161' }
         };
     }
   };
+
+  const statusDisplay = getStatusDisplay(document.status);
 
   return (
     <StyledCard>
@@ -151,9 +154,9 @@ const DocumentCard = ({ document, onShare, onEdit, onDelete }) => {
           {/* Footer */}
           <Box sx={{ mt: 'auto' }}>
             <StatusChip
-              label={document.status}
+              label={statusDisplay.label}
               size="small"
-              statuscolor={getStatusColor(document.status)}
+              statuscolor={statusDisplay.colorStyle}
             />
           </Box>
         </Stack>

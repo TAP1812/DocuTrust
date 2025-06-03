@@ -8,6 +8,10 @@ import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import { ethers } from 'ethers';
+import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
+import AccountCircleIcon from '@mui/icons-material/AccountCircle';
+import VpnKeyOutlinedIcon from '@mui/icons-material/VpnKeyOutlined';
+import Fingerprint from '@mui/icons-material/Fingerprint';
 
 function Register() {
   const [username, setUsername] = useState('');
@@ -49,10 +53,11 @@ function Register() {
   const handleCopyToClipboard = (textToCopy, type) => {
     navigator.clipboard.writeText(textToCopy).then(() => {
       setSuccess(`Đã sao chép ${type} vào clipboard!`);
-      setTimeout(() => setSuccess(''), 2000);
+      setTimeout(() => setSuccess(''), 3000);
     }).catch(err => {
       console.error('Không thể sao chép:', err);
       setError('Không thể sao chép vào clipboard.');
+      setTimeout(() => setError(''), 3000);
     });
   };
 
@@ -97,119 +102,219 @@ function Register() {
   };
 
   return (
-    <Container maxWidth="sm">
-      <Paper elevation={3} sx={{ p: 4, mt: 6 }}>
-        <Typography variant="h4" align="center" gutterBottom>Đăng ký Tài Khoản Mới</Typography>
-        
-        <Box sx={{ mb: 3, textAlign: 'center' }}>
-          <Button variant="contained" startIcon={<KeyIcon />} onClick={handleGenerateEthKeys} size="large">
-            1. Tạo Cặp Khóa Ethereum (Secp256k1)
-          </Button>
+    <Container 
+      maxWidth="md"
+      sx={{ 
+        display: 'flex', 
+        flexDirection: 'column', 
+        alignItems: 'center', 
+        justifyContent: 'center', 
+        minHeight: '90vh',
+        py: 2
+      }}
+    >
+      <Paper 
+        elevation={6}
+        sx={{ 
+          p: { xs: 2, sm: 3, md: 4 },
+          mt: 4, 
+          mb: 4,
+          width: '100%', 
+          maxWidth: '700px'
+        }}
+      >
+        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 3 }}>
+          <LockOutlinedIcon sx={{ fontSize: 40, mb: 1, color: 'primary.main' }} />
+          <Typography component="h1" variant="h4" align="center" gutterBottom sx={{ fontWeight: 'bold' }}>
+            Đăng ký Tài Khoản Mới
+          </Typography>
         </Box>
+        
+        {error && <Alert severity="error" sx={{ mb: 2, width: '100%' }}>{error}</Alert>}
+        {success && <Alert severity="success" sx={{ mb: 2, width: '100%' }}>{success}</Alert>}
 
-        {keysGenerated && (
-          <Alert severity="warning" sx={{ mb: 2 }}>
-            <Typography variant="h6" gutterBottom>Thông Tin Khóa Quan Trọng!</Typography>
-            <Typography variant="body2" sx={{ mb: 1}}>
-              Vui lòng sao lưu <b>Private Key</b> và <b>Mnemonic Phrase</b> dưới đây một cách an toàn.
-              Nếu mất thông tin này, bạn sẽ không thể khôi phục tài khoản hoặc chữ ký của mình.
-            </Typography>
-            
-            <Box sx={{ mt: 1, mb: 1 }}>
-              <Typography variant="subtitle2">Private Key (Hex):</Typography>
-              <TextField 
-                value={generatedEthPrivateKey} 
-                multiline 
-                fullWidth 
-                InputProps={{ 
-                  readOnly: true, 
-                  endAdornment: (
-                    <InputAdornment position="end">
-                      <Tooltip title="Sao chép Private Key">
-                        <IconButton onClick={() => handleCopyToClipboard(generatedEthPrivateKey, 'Private Key')} edge="end">
-                          <ContentCopyIcon />
-                        </IconButton>
-                      </Tooltip>
-                    </InputAdornment>
-                  )
-                }}
-                sx={{ mt: 0.5, fontFamily: 'monospace' }}
-              />
+        <Grid container spacing={3}>
+          <Grid item xs={12}>
+            <Box sx={{ textAlign: 'center', p: 2, border: '1px dashed grey', borderRadius: 1, mb: 3 }}>
+              <Typography variant="h6" sx={{ mb: 2, fontWeight: 500 }}>
+                Bước 1: Tạo Cặp Khóa Bảo Mật
+              </Typography>
+              <Button 
+                variant="contained" 
+                startIcon={<VpnKeyOutlinedIcon />} 
+                onClick={handleGenerateEthKeys} 
+                size="large"
+                sx={{ textTransform: 'none', fontWeight: 'bold' }}
+              >
+                Tạo Cặp Khóa Ethereum (Secp256k1)
+              </Button>
             </Box>
+          </Grid>
 
-            {generatedEthMnemonic && (
-              <Box sx={{ mt: 1, mb: 2 }}>
-                <Typography variant="subtitle2">Mnemonic Phrase (12 từ khôi phục):</Typography>
-                <TextField 
-                  value={generatedEthMnemonic} 
-                  multiline 
-                  fullWidth 
-                  InputProps={{ 
-                    readOnly: true,
-                    endAdornment: (
-                      <InputAdornment position="end">
-                        <Tooltip title="Sao chép Mnemonic Phrase">
-                          <IconButton onClick={() => handleCopyToClipboard(generatedEthMnemonic, 'Mnemonic Phrase')} edge="end">
-                            <ContentCopyIcon />
+          {keysGenerated && (
+            <Grid item xs={12}>
+              <Alert severity="warning" sx={{ mb: 3, p: 2 }}>
+                <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold' }}>
+                  ⚠️ Thông Tin Khóa Quan Trọng!
+                </Typography>
+                <Typography variant="body2" sx={{ mb: 2}}>
+                  Vui lòng sao lưu <b>Private Key</b> và <b>Mnemonic Phrase</b> dưới đây một cách an toàn.
+                  Nếu mất thông tin này, bạn sẽ không thể khôi phục tài khoản hoặc chữ ký của mình.
+                </Typography>
+                
+                <Grid container spacing={2}>
+                  <Grid item xs={12}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>Private Key (Hex):</Typography>
+                    <TextField 
+                      value={generatedEthPrivateKey} 
+                      multiline 
+                      fullWidth 
+                      InputProps={{ 
+                        readOnly: true, 
+                        endAdornment: (
+                          <InputAdornment position="end">
+                            <Tooltip title="Sao chép Private Key">
+                              <IconButton onClick={() => handleCopyToClipboard(generatedEthPrivateKey, 'Private Key')} edge="end">
+                                <ContentCopyIcon />
+                              </IconButton>
+                            </Tooltip>
+                          </InputAdornment>
+                        )
+                      }}
+                      sx={{ mt: 0.5, fontFamily: 'monospace', bgcolor: 'grey.100' }}
+                    />
+                  </Grid>
+
+                  {generatedEthMnemonic && (
+                    <Grid item xs={12}>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>Mnemonic Phrase (12 từ khôi phục):</Typography>
+                      <TextField 
+                        value={generatedEthMnemonic} 
+                        multiline 
+                        fullWidth 
+                        InputProps={{ 
+                          readOnly: true,
+                          endAdornment: (
+                            <InputAdornment position="end">
+                              <Tooltip title="Sao chép Mnemonic Phrase">
+                                <IconButton onClick={() => handleCopyToClipboard(generatedEthMnemonic, 'Mnemonic Phrase')} edge="end">
+                                  <ContentCopyIcon />
+                                </IconButton>
+                              </Tooltip>
+                            </InputAdornment>
+                          )
+                        }}
+                        sx={{ mt: 0.5, fontFamily: 'monospace', bgcolor: 'grey.100' }}
+                      />
+                    </Grid>
+                  )}
+                  <Grid item xs={12}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>Public Key (sẽ được gửi để đăng ký):</Typography>
+                    <TextField 
+                        value={generatedEthPublicKey} 
+                        multiline 
+                        fullWidth 
+                        InputProps={{ readOnly: true, startAdornment: <InputAdornment position="start"><Fingerprint /></InputAdornment> }} 
+                        sx={{ mt: 0.5, fontFamily: 'monospace', bgcolor: 'grey.100' }}
+                    />
+                  </Grid>
+                  <Grid item xs={12}>
+                    <FormControlLabel 
+                      control={<Checkbox checked={confirmedBackup} onChange={(e) => setConfirmedBackup(e.target.checked)} color="primary" />}
+                      label="Tôi đã sao lưu Private Key và Mnemonic Phrase an toàn."
+                      sx={{ mt: 1, mb: 1 }}
+                    />
+                  </Grid>
+                </Grid>
+              </Alert>
+            </Grid>
+          )}
+
+          <Grid item xs={12}>
+            <Box component="form" onSubmit={handleSubmit} sx={{ mt: keysGenerated ? 0 : 2 }}>
+              <Typography variant="h6" sx={{ mb: 2, fontWeight: 500, borderTop: '1px dashed grey', pt: 3, mt: keysGenerated ? 3 : 0 }}>
+                Bước 2: Nhập Thông Tin Tài Khoản
+              </Typography>
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={6}>
+                  <TextField 
+                    label="Họ tên" 
+                    value={fullName} 
+                    onChange={e => setFullName(e.target.value)} 
+                    fullWidth 
+                    required 
+                    InputProps={{ startAdornment: <InputAdornment position="start"><AccountCircleIcon /></InputAdornment> }} 
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField 
+                    label="Email" 
+                    type="email" 
+                    value={email} 
+                    onChange={e => setEmail(e.target.value)} 
+                    fullWidth 
+                    required 
+                    InputProps={{ startAdornment: <InputAdornment position="start"><EmailIcon /></InputAdornment> }} 
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField 
+                    label="Username" 
+                    value={username} 
+                    onChange={e => setUsername(e.target.value)} 
+                    fullWidth 
+                    required 
+                    InputProps={{ startAdornment: <InputAdornment position="start"><PersonIcon /></InputAdornment> }} 
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField 
+                    label="Mật khẩu" 
+                    type={showPassword ? 'text' : 'password'} 
+                    value={password} 
+                    onChange={e => setPassword(e.target.value)} 
+                    fullWidth 
+                    required 
+                    InputProps={{
+                      startAdornment: <InputAdornment position="start"><KeyIcon /></InputAdornment>,
+                      endAdornment: (
+                        <InputAdornment position="end">
+                          <IconButton onClick={()=>setShowPassword(s=>!s)} edge="end" aria-label={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}>
+                            {showPassword ? <VisibilityOff /> : <Visibility />}
                           </IconButton>
-                        </Tooltip>
-                      </InputAdornment>
-                    )
-                  }}
-                  sx={{ mt: 0.5, fontFamily: 'monospace' }}
-                />
-              </Box>
-            )}
-            <FormControlLabel 
-              control={<Checkbox checked={confirmedBackup} onChange={(e) => setConfirmedBackup(e.target.checked)} />}
-              label="Tôi đã sao lưu Private Key và Mnemonic Phrase an toàn."
-              sx={{ mb: 2 }}
-            />
-            <Typography variant="subtitle2">Public Key (sẽ được gửi để đăng ký):</Typography>
-            <TextField 
-                value={generatedEthPublicKey} 
-                multiline 
+                        </InputAdornment>
+                      )
+                    }} 
+                  />
+                </Grid>
+              </Grid>
+              <Button 
+                type="submit" 
                 fullWidth 
-                InputProps={{ readOnly: true }} 
-                sx={{ mt: 0.5, fontFamily: 'monospace' }}
-              />
-          </Alert>
-        )}
-
-        <form onSubmit={handleSubmit}>
-          <Typography variant="h6" sx={{ mt: keysGenerated ? 2 : 0, mb: 1}}>2. Nhập Thông Tin Tài Khoản</Typography>
-          <TextField label="Họ tên" value={fullName} onChange={e => setFullName(e.target.value)} fullWidth required margin="normal" InputProps={{ startAdornment: <InputAdornment position="start"><PersonIcon /></InputAdornment> }} />
-          <TextField label="Email" type="email" value={email} onChange={e => setEmail(e.target.value)} fullWidth required margin="normal" InputProps={{ startAdornment: <InputAdornment position="start"><EmailIcon /></InputAdornment> }} />
-          <TextField label="Username" value={username} onChange={e => setUsername(e.target.value)} fullWidth required margin="normal" InputProps={{ startAdornment: <InputAdornment position="start"><PersonIcon /></InputAdornment> }} />
-          <TextField 
-            label="Mật khẩu" 
-            type={showPassword ? 'text' : 'password'} 
-            value={password} 
-            onChange={e => setPassword(e.target.value)} 
-            fullWidth 
-            required 
-            margin="normal" 
-            InputProps={{
-              startAdornment: <InputAdornment position="start"><KeyIcon /></InputAdornment>,
-              endAdornment: (
-                <InputAdornment position="end">
-                  <IconButton onClick={()=>setShowPassword(s=>!s)} edge="end">
-                    {showPassword ? <VisibilityOff /> : <Visibility />}
-                  </IconButton>
-                </InputAdornment>
-              )
-            }}
-          />
-          <Button type="submit" variant="contained" color="primary" fullWidth sx={{ mt: 3 }} disabled={!keysGenerated || !confirmedBackup}>
-            Đăng ký
-          </Button>
-        </form>
-        {error && <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>}
-        {success && !error && <Alert severity="success" sx={{ mt: 2 }}>{success}</Alert>} 
-        <Typography align="center" sx={{ mt: 2 }}>
-          Đã có tài khoản?{' '}
-          <Button color="secondary" onClick={()=>navigate('/login')}>Đăng nhập</Button>
-        </Typography>
+                variant="contained" 
+                color="primary" 
+                size="large"
+                sx={{ mt: 3, mb: 2, textTransform: 'none', fontWeight: 'bold', py: 1.5 }}
+                disabled={!keysGenerated || !confirmedBackup}
+              >
+                Đăng ký
+              </Button>
+            </Box>
+          </Grid>
+          <Grid item xs={12} sx={{ textAlign: 'center', mt: 2 }}>
+            <Typography variant="body1">
+              Đã có tài khoản?{' '}
+              <Button 
+                variant="text" 
+                color="secondary" 
+                onClick={()=>navigate('/login')} 
+                sx={{ textTransform: 'none', fontWeight: 'bold' }}
+              >
+                Đăng nhập ngay
+              </Button>
+            </Typography>
+          </Grid>
+        </Grid>
       </Paper>
     </Container>
   );

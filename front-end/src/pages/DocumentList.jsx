@@ -20,7 +20,7 @@ import {
   Search as SearchIcon,
   Description as DescriptionIcon,
 } from '@mui/icons-material';
-import { useNavigate, Link as RouterLink } from 'react-router-dom';
+import { useNavigate, Link as RouterLink, useLocation } from 'react-router-dom';
 import DocumentCard from '../components/documents/DocumentCard';
 import ShareDialog from '../components/documents/ShareDialog';
 import { useDocuments } from '../hooks/useDocuments';
@@ -82,6 +82,7 @@ const EmptyState = styled(Paper)(({ theme }) => ({
 
 const DocumentList = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { documents, loading, error, fetchDocuments, deleteDocument } = useDocuments();
   const [searchTerm, setSearchTerm] = useState('');
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
@@ -89,8 +90,10 @@ const DocumentList = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   useEffect(() => {
-    fetchDocuments();
-  }, []);
+    const params = new URLSearchParams(location.search);
+    const status = params.get('status');
+    fetchDocuments(status);
+  }, [location.search, fetchDocuments]);
 
   const filteredDocuments = documents.filter(doc =>
     doc.title.toLowerCase().includes(searchTerm.toLowerCase())

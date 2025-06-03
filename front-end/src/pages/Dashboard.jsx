@@ -31,6 +31,7 @@ import {
   Notifications as NotificationIcon,
   VerifiedUser,
   Draw,
+  ChevronRight,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 
@@ -162,10 +163,10 @@ const Dashboard = () => {
         {/* Header Section with Profile Menu */}
         <Stack 
           direction="row" 
-          justifyContent="space-between" 
           alignItems="center" 
-          sx={{ mb: 6 }}
+          sx={{ mb: 6, width: '100%' }}
         >
+          <Box sx={{ flex: 1 }} />
           <Typography 
             variant="h4" 
             sx={{
@@ -174,11 +175,17 @@ const Dashboard = () => {
               backgroundClip: 'text',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
+              textAlign: 'center',
             }}
           >
             DocuTrust
           </Typography>
-          <Stack direction="row" spacing={2} alignItems="center">
+          <Stack 
+            direction="row" 
+            spacing={2} 
+            alignItems="center" 
+            sx={{ flex: 1, justifyContent: 'flex-end' }}
+          >
             <Tooltip title="Thông báo">
               <IconButton onClick={handleNotificationOpen}>
                 <NotificationIcon sx={{ color: theme.palette.primary.main }} />
@@ -189,12 +196,15 @@ const Dashboard = () => {
               onClick={handleProfileMenuOpen}
               sx={{
                 color: theme.palette.primary.main,
+                textTransform: 'none',
                 '&:hover': {
                   bgcolor: `${theme.palette.primary.main}08`,
                 },
               }}
             >
-              {user?.fullName || user?.username}
+              <Typography sx={{ fontSize: theme.typography.body1.fontSize, fontWeight: 500 }}>
+                {user?.fullName || user?.username}
+              </Typography>
             </Button>
           </Stack>
 
@@ -374,38 +384,57 @@ const Dashboard = () => {
         </Grid>
 
         {/* Quick Actions */}
-        <Box>
+        <Box sx={{ mt: 6 }}>
           <Typography variant="h5" sx={{ 
-            mb: 3, 
-            fontWeight: 600,
+            mb: 4,
+            fontWeight: 700,
             color: theme.palette.primary.dark,
+            textAlign: 'center'
           }}>
             Thao tác nhanh
           </Typography>
-          <Grid container spacing={2}>
+          <Grid container spacing={3}>
             {quickActions.map((action, index) => (
               <Grid item xs={12} sm={6} md={3} key={index}>
-                <Button
-                  fullWidth
-                  variant="outlined"
-                  startIcon={action.icon}
+                <Paper
+                  elevation={2}
                   onClick={action.onClick}
                   sx={{
-                    py: 2,
-                    borderRadius: 2,
-                    borderColor: action.color ? action.color : theme.palette.primary.light,
-                    color: action.color ? action.color : theme.palette.primary.main,
-                    bgcolor: 'rgba(255, 255, 255, 0.8)',
-                    transition: 'all 0.2s ease-in-out',
+                    p: 2.5,
+                    borderRadius: 3,
+                    textAlign: 'center',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease-in-out',
+                    border: `1px solid ${theme.palette.divider}`,
+                    bgcolor: theme.palette.background.paper,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    height: '100%',
+                    minHeight: 160,
                     '&:hover': {
-                      borderColor: action.color ? action.color : theme.palette.primary.main,
-                      bgcolor: action.color ? `${action.color}1A` : `${theme.palette.primary.main}1A`,
-                      transform: 'translateY(-2px)',
+                      transform: 'translateY(-5px)',
+                      boxShadow: theme.shadows[6],
+                      borderColor: theme.palette.primary.main,
+                      bgcolor: `${theme.palette.primary.main}0D`,
                     },
                   }}
                 >
-                  {action.text}
-                </Button>
+                  <Avatar sx={{ 
+                    bgcolor: theme.palette.primary.light, 
+                    color: theme.palette.primary.contrastText, 
+                    width: 56, 
+                    height: 56, 
+                    mb: 2 
+                  }}>
+                    {React.cloneElement(action.icon, { fontSize: 'large' })}
+                  </Avatar>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 0.5, color: theme.palette.text.primary }}>
+                    {action.text}
+                  </Typography>
+                  <ChevronRight sx={{ color: theme.palette.text.secondary, mt: 1 }}/>
+                </Paper>
               </Grid>
             ))}
           </Grid>

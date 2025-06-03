@@ -15,7 +15,7 @@ export const useDocuments = () => {
 
   console.log('[useDocuments] Hook instance created. CurrentDocument state:', currentDocument); // Log currentDocument state
 
-  const fetchDocuments = useCallback(async () => {
+  const fetchDocuments = useCallback(async (status) => {
     setLoading(true);
     try {
       const user = JSON.parse(localStorage.getItem('user'));
@@ -24,7 +24,11 @@ export const useDocuments = () => {
         setLoading(false);
         return;
       }
-      const response = await api.get(`/api/documents?userId=${user.id}`);
+      let apiUrl = `/api/documents?userId=${user.id}`;
+      if (status) {
+        apiUrl += `&status=${status}`;
+      }
+      const response = await api.get(apiUrl);
       setDocuments(response.data.documents || []);
       setError(null);
     } catch (err) {

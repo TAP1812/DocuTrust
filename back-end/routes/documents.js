@@ -144,7 +144,8 @@ router.post('/', upload.single('file'), async (req, res) => {
 
 // Lấy danh sách tài liệu
 router.get('/', async (req, res) => {
-  try {    const { userId } = req.query;
+  try {
+    const { userId, status } = req.query;
     let query = {};
     
     if (userId) {
@@ -162,6 +163,14 @@ router.get('/', async (req, res) => {
           { 'signers.userId': userObjectId }
         ]
       };
+    }
+
+    if (status === 'signed') {
+      query.status = { $in: ['signed', 'completed'] };
+    } else if (status && ['pending', 'rejected', 'viewed'].includes(status)) {
+      query.status = status;
+    } else if (status) {
+      console.warn(`Received invalid status query: ${status}. Fetching without status filter.`);
     }
     
     const docs = await Document.find(query)
@@ -266,7 +275,7 @@ router.post('/:id/sign', async (req, res) => {
     );
 
     if (allHaveSigned) {
-      doc.status = 'completed';
+      doc.status = 'signed';
       doc.completedAt = new Date();
     }
 
