@@ -38,7 +38,42 @@ DocuTrust là một nền tảng quản lý tài liệu số hiện đại, tậ
     - Thống kê nhanh về số lượng tài liệu (đã tạo, chờ ký, đã ký).
     - Các thao tác nhanh (Tải lên, xem danh sách tài liệu theo trạng thái).
 
-## 🚀 Công nghệ sử dụng
+## 🏛️ Core Architecture
+
+DocuTrust xoay quanh việc đảm bảo tính toàn vẹn và xác thực của tài liệu số thông qua chữ ký điện tử dựa trên mật mã khóa công khai. Dưới đây là ý tưởng cốt lõi:
+
+### Luồng ký và xác thực tài liệu cốt lõi
+
+Quy trình này sử dụng các tiêu chuẩn mật mã mạnh mẽ, cụ thể là thuật toán băm **SHA-256** (hoặc một thuật toán an toàn tương đương trong họ SHA-2) và thuật toán ký **ECDSA (Elliptic Curve Digital Signature Algorithm)** trên đường cong secp256k1, vốn là tiêu chuẩn cho Ethereum.
+
+1.  **Tạo Hash Tài liệu (Phía Client/Server)**:
+    *   Khi một tài liệu cần được ký, nội dung của tài liệu đó (thường là dưới dạng bytes) sẽ được đưa qua thuật toán băm **SHA-256**. Thao tác này tạo ra một chuỗi hash (ví dụ: một chuỗi 32-byte) duy nhất đại diện cho tài liệu.
+    *   Trong `ethers.js`, bạn có thể sử dụng `ethers.utils.sha256()` hoặc `ethers.utils.keccak256()` (thường được ưu tiên trong ngữ cảnh Ethereum cho một số mục đích nhất định, nhưng SHA-256 là một lựa chọn mạnh mẽ và phổ biến cho việc băm nội dung file).
+    *   Việc này đảm bảo rằng dù tài liệu có lớn đến đâu, chữ ký cũng chỉ cần thực hiện trên một chuỗi hash có kích thước cố định.
+
+2.  **Ký Hash bằng Private Key (Phía Client, sử dụng `ethers.js`)**:
+    *   Người dùng (chủ sở hữu tài liệu hoặc người được ủy quyền ký) sẽ sử dụng **Private Key** Ethereum của mình để ký lên chuỗi hash đã tạo ở bước 1. Thao tác này được thực hiện hoàn toàn ở phía client để đảm bảo Private Key không bao giờ bị lộ.
+    *   Thư viện `ethers.js` cung cấp phương thức `signer.signMessage()` hoặc `signer.signDigest()` (nếu bạn đã có digest/hash) để thực hiện việc ký. Ví dụ: `const signature = await wallet.signMessage(ethers.utils.arrayify(documentHash));` (nếu `documentHash` là hex string, `arrayify` chuyển nó thành `Uint8Array` mà `signMessage` thường mong đợi cho message tùy ý, hoặc trực tiếp ký digest).
+    *   Quá trình ký này sử dụng thuật toán **ECDSA** để tạo ra một **Chữ ký số (Digital Signature)**. Chữ ký này là bằng chứng mật mã rằng người sở hữu Private Key tương ứng đã chấp thuận nội dung tài liệu (đại diện bởi hash).
+
+3.  **Lưu trữ Tài liệu, Hash, Chữ ký và Public Key (Phía Server)**:
+    *   Tài liệu gốc (hoặc một tham chiếu đến nó), chuỗi hash của tài liệu (đã tính ở bước 1), chữ ký số (thu được ở bước 2), và Public Key của người ký (hoặc địa chỉ Ethereum, có thể suy ra từ Public Key) sẽ được gửi lên server và lưu trữ.
+    *   Public Key được liên kết với tài khoản người dùng và được sử dụng trong quá trình xác minh.
+
+4.  **Xác minh Chữ ký (Phía Client/Server, sử dụng `ethers.js`)**:
+    *   Để xác minh tính hợp lệ của một tài liệu đã ký, quy trình sau được thực hiện:
+        *   **Lấy tài liệu gốc, chữ ký số đã lưu, và Public Key (hoặc địa chỉ Ethereum) của người ký.**
+        *   **Tính toán lại hash của tài liệu gốc** bằng cùng một thuật toán băm (ví dụ: **SHA-256**) đã sử dụng ở bước 1.
+        *   **Sử dụng Public Key (hoặc địa chỉ) của người ký để xác minh chữ ký.** Thư viện `ethers.js` cung cấp hàm `ethers.utils.verifyMessage()` hoặc `ethers.utils.recoverAddress()` (nếu bạn muốn lấy lại địa chỉ đã ký từ hash và chữ ký) để thực hiện việc này. Ví dụ: `const recoveredAddress = ethers.utils.verifyMessage(ethers.utils.arrayify(documentHash), signature);`
+        *   So sánh địa chỉ thu được từ việc xác minh chữ ký (`recoveredAddress`) với địa chỉ Ethereum của người ký đã biết.
+    *   Nếu địa chỉ này khớp nhau, điều đó có nghĩa là:
+        *   **Tính toàn vẹn**: Tài liệu không bị thay đổi kể từ khi nó được ký (vì hash khớp).
+        *   **Tính xác thực**: Chữ ký thực sự được tạo bởi người sở hữu Private Key tương ứng với Public Key/địa chỉ Ethereum đã được sử dụng để xác minh.
+        *   **Chống chối bỏ**: Người ký không thể phủ nhận rằng họ đã ký tài liệu.
+
+Ý tưởng này tận dụng sức mạnh của mật mã bất đối xứng (public-key cryptography) và các thư viện như `ethers.js` để tạo ra một hệ thống đáng tin cậy cho việc quản lý và xác thực tài liệu điện tử.
+
+## 📄 Công nghệ sử dụng
 
 ### Backend
 - **Node.js**: Nền tảng JavaScript runtime.
@@ -158,6 +193,38 @@ Dưới đây là một số API endpoint quan trọng được cung cấp bởi
 5.  **Xem danh sách & Chi tiết**: Xem danh sách các tài liệu, lọc theo trạng thái (chờ ký, đã ký), xem chi tiết từng tài liệu.
 6.  **Ký tài liệu**: Người dùng sử dụng Private Key của mình để ký lên các tài liệu được chỉ định (chữ ký được tạo ở client và gửi lên server).
 7.  **Xác minh (ngầm hoặc chủ động)**: Hệ thống (hoặc người dùng khác) có thể xác minh tính hợp lệ của các chữ ký trên tài liệu.
+
+## 📝 Use Cases / Ứng dụng thực tế
+
+DocuTrust có thể được ứng dụng trong nhiều lĩnh vực và tình huống khác nhau, nơi mà tính toàn vẹn, xác thực và chống chối bỏ của tài liệu là quan trọng:
+
+*   **Hợp đồng điện tử (Legal Contracts)**:
+    *   Ký kết và quản lý hợp đồng lao động, hợp đồng dịch vụ, thỏa thuận mua bán.
+    *   Xác thực các thỏa thuận bảo mật thông tin (NDA).
+    *   Lưu trữ an toàn các văn bản pháp lý quan trọng với bằng chứng ký không thể thay đổi.
+*   **Tài liệu tài chính (Financial Documents)**:
+    *   Phê duyệt và ký hóa đơn, đơn đặt hàng.
+    *   Xác nhận báo cáo tài chính, kế hoạch ngân sách.
+    *   Quản lý các thỏa thuận vay vốn, đầu tư.
+*   **Quy trình nội bộ doanh nghiệp (Internal Business Processes)**:
+    *   Số hóa và ký các đề xuất dự án, báo cáo công việc.
+    *   Quản lý tài liệu nhân sự: đơn xin nghỉ phép, đánh giá hiệu suất, biên bản cuộc họp.
+    *   Phê duyệt các yêu cầu thay đổi, tài liệu chất lượng.
+*   **Sở hữu trí tuệ và Sáng tạo (Intellectual Property & Creative Works)**:
+    *   Xác thực thời điểm tạo và quyền tác giả cho các bản thảo, tài liệu nghiên cứu.
+    *   Bảo vệ các thiết kế, mã nguồn, hoặc tác phẩm nghệ thuật số.
+*   **Hồ sơ y tế và Chấp thuận (Healthcare Records & Consents)**:
+    *   *Lưu ý: Cần tuân thủ các quy định bảo mật dữ liệu y tế nghiêm ngặt như HIPAA hoặc các quy định tương đương của địa phương.*
+    *   Bệnh nhân ký điện tử các biểu mẫu chấp thuận điều trị, ủy quyền.
+    *   Quản lý an toàn các hồ sơ y tế cần chữ ký xác thực.
+*   **Giáo dục và Chứng chỉ (Education & Certifications)**:
+    *   Cấp và xác minh các chứng chỉ hoàn thành khóa học, bằng cấp dưới dạng kỹ thuật số.
+    *   Giảng viên và sinh viên ký vào các biểu mẫu, đồ án.
+*   **Chuỗi cung ứng và Logistics (Supply Chain & Logistics)**:
+    *   Ký và xác thực các vận đơn, tài liệu giao nhận hàng hóa.
+    *   Đảm bảo tính minh bạch và truy xuất nguồn gốc của tài liệu trong chuỗi cung ứng.
+
+Nền tảng DocuTrust giúp giảm thiểu rủi ro giả mạo, tăng cường hiệu quả và đơn giản hóa quy trình làm việc với tài liệu số trong các trường hợp này.
 
 ## 🧪 Testing (Ví dụ)
 
