@@ -20,9 +20,7 @@ function Register() {
   const [fullName, setFullName] = useState('');
   
   const [generatedEthPrivateKey, setGeneratedEthPrivateKey] = useState('');
-  const [generatedEthMnemonic, setGeneratedEthMnemonic] = useState('');
   const [generatedEthPublicKey, setGeneratedEthPublicKey] = useState('');
-  
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -37,15 +35,12 @@ function Register() {
     try {
       const wallet = ethers.Wallet.createRandom();
       setGeneratedEthPrivateKey(wallet.privateKey);
-      if (wallet.mnemonic) {
-        setGeneratedEthMnemonic(wallet.mnemonic.phrase);
-      }
       setGeneratedEthPublicKey(wallet.publicKey);
       setKeysGenerated(true);
-      setSuccess('Đã tạo cặp khóa Ethereum (secp256k1) mới! Vui lòng sao lưu Private Key và Mnemonic Phrase một cách cẩn thận.');
+      setSuccess('Đã tạo khóa bảo mật thành công! Vui lòng sao lưu Private Key một cách cẩn thận.');
     } catch (err) {
-      console.error("Lỗi khi tạo khóa Ethereum:", err);
-      setError('Không thể tạo cặp khóa Ethereum. Vui lòng thử lại.');
+      console.error("Lỗi khi tạo khóa:", err);
+      setError('Không thể tạo khóa bảo mật. Vui lòng thử lại.');
       setKeysGenerated(false);
     }
   };
@@ -66,11 +61,11 @@ function Register() {
     setError(''); setSuccess('');
 
     if (!keysGenerated) {
-      setError('Vui lòng tạo cặp khóa trước khi đăng ký.');
+      setError('Vui lòng tạo khóa trước khi đăng ký.');
       return;
     }
     if (!confirmedBackup) {
-      setError('Vui lòng xác nhận bạn đã sao lưu Private Key và Mnemonic Phrase.');
+      setError('Vui lòng xác nhận bạn đã sao lưu Private Key.');
       return;
     }
     if (!generatedEthPublicKey) {
@@ -88,7 +83,7 @@ function Register() {
       if (res.ok) {
         setSuccess('Đăng ký thành công! Bạn sẽ được chuyển đến trang đăng nhập.');
         setGeneratedEthPrivateKey('');
-        setGeneratedEthMnemonic('');
+        setGeneratedEthPublicKey('');
         setKeysGenerated(false);
         setConfirmedBackup(false);
         setTimeout(()=>navigate('/login'), 2000);
@@ -137,7 +132,10 @@ function Register() {
           <Grid item xs={12}>
             <Box sx={{ textAlign: 'center', p: 2, border: '1px dashed grey', borderRadius: 1, mb: 3 }}>
               <Typography variant="h6" sx={{ mb: 2, fontWeight: 500 }}>
-                Bước 1: Tạo Cặp Khóa Bảo Mật
+                Bước 1: Tạo Khóa Bảo Mật
+              </Typography>
+              <Typography variant="body2" sx={{ mb: 2, color: 'text.secondary' }}>
+                Khóa bảo mật sẽ được sử dụng để ký các tài liệu của bạn. Hãy đảm bảo lưu trữ nó an toàn.
               </Typography>
               <Button 
                 variant="contained" 
@@ -146,86 +144,45 @@ function Register() {
                 size="large"
                 sx={{ textTransform: 'none', fontWeight: 'bold' }}
               >
-                Tạo Cặp Khóa Ethereum (Secp256k1)
+                Tạo Khóa Bảo Mật
               </Button>
             </Box>
           </Grid>
 
           {keysGenerated && (
             <Grid item xs={12}>
-              <Alert severity="warning" sx={{ mb: 3, p: 2 }}>
+              <Alert severity="warning" sx={{ mb: 2 }}>
                 <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold' }}>
-                  ⚠️ Thông Tin Khóa Quan Trọng!
+                  ⚠️ Lưu ý Quan Trọng!
                 </Typography>
                 <Typography variant="body2" sx={{ mb: 2}}>
-                  Vui lòng sao lưu <b>Private Key</b> và <b>Mnemonic Phrase</b> dưới đây một cách an toàn.
-                  Nếu mất thông tin này, bạn sẽ không thể khôi phục tài khoản hoặc chữ ký của mình.
+                  Vui lòng sao lưu <b>Private Key</b> dưới đây một cách an toàn.
+                  Nếu mất khóa này, bạn sẽ không thể ký tài liệu hoặc khôi phục tài khoản.
                 </Typography>
-                
-                <Grid container spacing={2}>
-                  <Grid item xs={12}>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>Private Key (Hex):</Typography>
-                    <TextField 
-                      value={generatedEthPrivateKey} 
-                      multiline 
-                      fullWidth 
-                      InputProps={{ 
-                        readOnly: true, 
-                        endAdornment: (
-                          <InputAdornment position="end">
-                            <Tooltip title="Sao chép Private Key">
-                              <IconButton onClick={() => handleCopyToClipboard(generatedEthPrivateKey, 'Private Key')} edge="end">
-                                <ContentCopyIcon />
-                              </IconButton>
-                            </Tooltip>
-                          </InputAdornment>
-                        )
-                      }}
-                      sx={{ mt: 0.5, fontFamily: 'monospace', bgcolor: 'grey.100' }}
-                    />
-                  </Grid>
-
-                  {generatedEthMnemonic && (
-                    <Grid item xs={12}>
-                      <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>Mnemonic Phrase (12 từ khôi phục):</Typography>
-                      <TextField 
-                        value={generatedEthMnemonic} 
-                        multiline 
-                        fullWidth 
-                        InputProps={{ 
-                          readOnly: true,
-                          endAdornment: (
-                            <InputAdornment position="end">
-                              <Tooltip title="Sao chép Mnemonic Phrase">
-                                <IconButton onClick={() => handleCopyToClipboard(generatedEthMnemonic, 'Mnemonic Phrase')} edge="end">
-                                  <ContentCopyIcon />
-                                </IconButton>
-                              </Tooltip>
-                            </InputAdornment>
-                          )
-                        }}
-                        sx={{ mt: 0.5, fontFamily: 'monospace', bgcolor: 'grey.100' }}
-                      />
-                    </Grid>
-                  )}
-                  <Grid item xs={12}>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>Public Key (sẽ được gửi để đăng ký):</Typography>
-                    <TextField 
-                        value={generatedEthPublicKey} 
-                        multiline 
-                        fullWidth 
-                        InputProps={{ readOnly: true, startAdornment: <InputAdornment position="start"><Fingerprint /></InputAdornment> }} 
-                        sx={{ mt: 0.5, fontFamily: 'monospace', bgcolor: 'grey.100' }}
-                    />
-                  </Grid>
-                  <Grid item xs={12}>
-                    <FormControlLabel 
-                      control={<Checkbox checked={confirmedBackup} onChange={(e) => setConfirmedBackup(e.target.checked)} color="primary" />}
-                      label="Tôi đã sao lưu Private Key và Mnemonic Phrase an toàn."
-                      sx={{ mt: 1, mb: 1 }}
-                    />
-                  </Grid>
-                </Grid>
+                <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>Private Key:</Typography>
+                <TextField 
+                  value={generatedEthPrivateKey} 
+                  multiline 
+                  fullWidth 
+                  InputProps={{ 
+                    readOnly: true, 
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <Tooltip title="Sao chép Private Key">
+                          <IconButton onClick={() => handleCopyToClipboard(generatedEthPrivateKey, 'Private Key')} edge="end">
+                            <ContentCopyIcon />
+                          </IconButton>
+                        </Tooltip>
+                      </InputAdornment>
+                    )
+                  }}
+                  sx={{ mt: 0.5, fontFamily: 'monospace', bgcolor: 'grey.100' }}
+                />
+                <FormControlLabel 
+                  control={<Checkbox checked={confirmedBackup} onChange={(e) => setConfirmedBackup(e.target.checked)} color="primary" />}
+                  label="Tôi đã sao lưu Private Key an toàn."
+                  sx={{ mt: 2, mb: 0 }}
+                />
               </Alert>
             </Grid>
           )}
