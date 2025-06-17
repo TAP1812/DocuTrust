@@ -227,6 +227,3 @@ DocuTrust có thể được ứng dụng trong nhiều lĩnh vực và tình hu
 Nền tảng DocuTrust giúp giảm thiểu rủi ro giả mạo, tăng cường hiệu quả và đơn giản hóa quy trình làm việc với tài liệu số trong các trường hợp này.
 
 ---
-<div align="center">
-  <p>Made with ❤️ by DocuTrust Team</p>
-</div>
