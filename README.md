@@ -7,9 +7,9 @@
 
 ## 📌 Giới thiệu
 
-DocuTrust là một nền tảng quản lý tài liệu số hiện đại, tập trung vào tính bảo mật và xác thực thông qua việc sử dụng cặp khóa công khai-bí mật theo chuẩn Ethereum và chữ ký điện tử. Dự án cho phép người dùng:
+DocuTrust là một nền tảng quản lý tài liệu số hiện đại, tập trung vào tính bảo mật và xác thực thông qua việc sử dụng cặp khóa công khai-bí mật và chữ ký điện tử. Dự án cho phép người dùng:
 - ✨ Quản lý tài liệu một cách an toàn và hiệu quả.
-- 🔑 Tạo và quản lý cặp khóa Ethereum (Private Key, Public Key, Mnemonic Phrase) cho mục đích định danh và ký tài liệu.
+- 🔑 Tạo và quản lý cặp khóa (Private Key, Public Key, Mnemonic Phrase) cho mục đích định danh và ký tài liệu.
 - ✍️ Ký điện tử lên tài liệu, đảm bảo tính toàn vẹn và chống chối bỏ.
 - 🔗 Xác minh tính hợp lệ của chữ ký trên tài liệu.
 - 🤝 Chia sẻ tài liệu một cách an toàn (tính năng có thể mở rộng).
@@ -18,7 +18,7 @@ DocuTrust là một nền tảng quản lý tài liệu số hiện đại, tậ
 ## ✨ Tính năng chính
 
 - **Quản lý người dùng**: Đăng ký, đăng nhập.
-- **Quản lý khóa Ethereum**:
+- **Quản lý khóa**:
     - Tạo cặp khóa mới (Private Key, Public Key, Mnemonic Phrase) ngay trên trình duyệt.
     - Nhắc nhở người dùng sao lưu khóa an toàn.
     - Public Key được lưu trữ để liên kết với tài khoản người dùng.
@@ -44,36 +44,36 @@ DocuTrust xoay quanh việc đảm bảo tính toàn vẹn và xác thực của
 
 ### Luồng ký và xác thực tài liệu cốt lõi
 
-Quy trình này sử dụng các tiêu chuẩn mật mã mạnh mẽ, cụ thể là thuật toán băm **SHA-256** (hoặc một thuật toán an toàn tương đương trong họ SHA-2) và thuật toán ký **ECDSA (Elliptic Curve Digital Signature Algorithm)** trên đường cong secp256k1, vốn là tiêu chuẩn cho Ethereum.
+Quy trình này sử dụng các tiêu chuẩn mật mã mạnh mẽ, cụ thể là thuật toán băm **SHA-256** (hoặc một thuật toán an toàn tương đương trong họ SHA-2) và thuật toán ký **ECDSA (Elliptic Curve Digital Signature Algorithm)** trên đường cong secp256k1.
 
 1.  **Tạo Hash Tài liệu (Phía Client/Server)**:
     *   Khi một tài liệu cần được ký, nội dung của tài liệu đó (thường là dưới dạng bytes) sẽ được đưa qua thuật toán băm **SHA-256**. Thao tác này tạo ra một chuỗi hash (ví dụ: một chuỗi 32-byte) duy nhất đại diện cho tài liệu.
-    *   Trong `ethers.js`, bạn có thể sử dụng `ethers.utils.sha256()` hoặc `ethers.utils.keccak256()` (thường được ưu tiên trong ngữ cảnh Ethereum cho một số mục đích nhất định, nhưng SHA-256 là một lựa chọn mạnh mẽ và phổ biến cho việc băm nội dung file).
+    *   Trong `ethers.js`, bạn có thể sử dụng `ethers.utils.sha256()` hoặc `ethers.utils.keccak256()` (thường được ưu tiên trong ngữ cảnh blockchain cho một số mục đích nhất định, nhưng SHA-256 là một lựa chọn mạnh mẽ và phổ biến cho việc băm nội dung file).
     *   Việc này đảm bảo rằng dù tài liệu có lớn đến đâu, chữ ký cũng chỉ cần thực hiện trên một chuỗi hash có kích thước cố định.
 
 2.  **Ký Hash bằng Private Key (Phía Client, sử dụng `ethers.js`)**:
-    *   Người dùng (chủ sở hữu tài liệu hoặc người được ủy quyền ký) sẽ sử dụng **Private Key** Ethereum của mình để ký lên chuỗi hash đã tạo ở bước 1. Thao tác này được thực hiện hoàn toàn ở phía client để đảm bảo Private Key không bao giờ bị lộ.
+    *   Người dùng (chủ sở hữu tài liệu hoặc người được ủy quyền ký) sẽ sử dụng **Private Key** của mình để ký lên chuỗi hash đã tạo ở bước 1. Thao tác này được thực hiện hoàn toàn ở phía client để đảm bảo Private Key không bao giờ bị lộ.
     *   Thư viện `ethers.js` cung cấp phương thức `signer.signMessage()` hoặc `signer.signDigest()` (nếu bạn đã có digest/hash) để thực hiện việc ký. Ví dụ: `const signature = await wallet.signMessage(ethers.utils.arrayify(documentHash));` (nếu `documentHash` là hex string, `arrayify` chuyển nó thành `Uint8Array` mà `signMessage` thường mong đợi cho message tùy ý, hoặc trực tiếp ký digest).
     *   Quá trình ký này sử dụng thuật toán **ECDSA** để tạo ra một **Chữ ký số (Digital Signature)**. Chữ ký này là bằng chứng mật mã rằng người sở hữu Private Key tương ứng đã chấp thuận nội dung tài liệu (đại diện bởi hash).
 
 3.  **Lưu trữ Tài liệu, Hash, Chữ ký và Public Key (Phía Server)**:
-    *   Tài liệu gốc (hoặc một tham chiếu đến nó), chuỗi hash của tài liệu (đã tính ở bước 1), chữ ký số (thu được ở bước 2), và Public Key của người ký (hoặc địa chỉ Ethereum, có thể suy ra từ Public Key) sẽ được gửi lên server và lưu trữ.
+    *   Tài liệu gốc (hoặc một tham chiếu đến nó), chuỗi hash của tài liệu (đã tính ở bước 1), chữ ký số (thu được ở bước 2), và Public Key của người ký (hoặc địa chỉ, có thể suy ra từ Public Key) sẽ được gửi lên server và lưu trữ.
     *   Public Key được liên kết với tài khoản người dùng và được sử dụng trong quá trình xác minh.
 
 4.  **Xác minh Chữ ký (Phía Client/Server, sử dụng `ethers.js`)**:
     *   Để xác minh tính hợp lệ của một tài liệu đã ký, quy trình sau được thực hiện:
-        *   **Lấy tài liệu gốc, chữ ký số đã lưu, và Public Key (hoặc địa chỉ Ethereum) của người ký.**
+        *   **Lấy tài liệu gốc, chữ ký số đã lưu, và Public Key (hoặc địa chỉ) của người ký.**
         *   **Tính toán lại hash của tài liệu gốc** bằng cùng một thuật toán băm (ví dụ: **SHA-256**) đã sử dụng ở bước 1.
         *   **Sử dụng Public Key (hoặc địa chỉ) của người ký để xác minh chữ ký.** Thư viện `ethers.js` cung cấp hàm `ethers.utils.verifyMessage()` hoặc `ethers.utils.recoverAddress()` (nếu bạn muốn lấy lại địa chỉ đã ký từ hash và chữ ký) để thực hiện việc này. Ví dụ: `const recoveredAddress = ethers.utils.verifyMessage(ethers.utils.arrayify(documentHash), signature);`
-        *   So sánh địa chỉ thu được từ việc xác minh chữ ký (`recoveredAddress`) với địa chỉ Ethereum của người ký đã biết.
+        *   So sánh địa chỉ thu được từ việc xác minh chữ ký (`recoveredAddress`) với địa chỉ của người ký đã biết.
     *   Nếu địa chỉ này khớp nhau, điều đó có nghĩa là:
         *   **Tính toàn vẹn**: Tài liệu không bị thay đổi kể từ khi nó được ký (vì hash khớp).
-        *   **Tính xác thực**: Chữ ký thực sự được tạo bởi người sở hữu Private Key tương ứng với Public Key/địa chỉ Ethereum đã được sử dụng để xác minh.
+        *   **Tính xác thực**: Chữ ký thực sự được tạo bởi người sở hữu Private Key tương ứng với Public Key/địa chỉ đã được sử dụng để xác minh.
         *   **Chống chối bỏ**: Người ký không thể phủ nhận rằng họ đã ký tài liệu.
 
 Ý tưởng này tận dụng sức mạnh của mật mã bất đối xứng (public-key cryptography) và các thư viện như `ethers.js` để tạo ra một hệ thống đáng tin cậy cho việc quản lý và xác thực tài liệu điện tử.
 
-## 📄 Công nghệ sử dụng
+## 🚀 Công nghệ sử dụng
 
 ### Backend
 - **Node.js**: Nền tảng JavaScript runtime.
@@ -81,7 +81,7 @@ Quy trình này sử dụng các tiêu chuẩn mật mã mạnh mẽ, cụ thể
 - **MongoDB**: Cơ sở dữ liệu NoSQL.
 - **Mongoose**: ODM library cho MongoDB và Node.js.
 - **JSON Web Tokens (JWT)**: Cho xác thực người dùng.
-- **ethers.js**: Thư viện để tương tác với các chức năng liên quan đến Ethereum (ví dụ: tạo ví, thao tác với địa chỉ/khóa, xác minh chữ ký).
+- **ethers.js**: Thư viện để tương tác với các chức năng liên quan đến mật mã (ví dụ: tạo ví, thao tác với địa chỉ/khóa, xác minh chữ ký).
 - **Multer**: Middleware cho việc xử lý file upload.
 - **bcryptjs**: Thư viện để mã hóa mật khẩu.
 
@@ -90,7 +90,7 @@ Quy trình này sử dụng các tiêu chuẩn mật mã mạnh mẽ, cụ thể
 - **Material-UI (MUI)**: Bộ thư viện component UI cho React.
 - **React Router DOM**: Cho việc định tuyến (routing) trong ứng dụng React.
 - **Axios**: HTTP client để thực hiện các yêu cầu API.
-- **ethers.js**: Thư viện để tạo cặp khóa Ethereum và ký message/hash ở phía client.
+- **ethers.js**: Thư viện để tạo cặp khóa và ký message/hash ở phía client.
 - **date-fns**: Thư viện tiện ích cho việc định dạng ngày giờ.
 
 ## 📁 Cấu trúc dự án (Tổng quan)
@@ -186,7 +186,7 @@ Dưới đây là một số API endpoint quan trọng được cung cấp bởi
 
 ## 🌊 Luồng hoạt động cơ bản
 
-1.  **Đăng ký**: Người dùng mới cung cấp thông tin (Họ tên, Email, Username, Mật khẩu). Hệ thống sẽ hướng dẫn tạo cặp khóa Ethereum (Private Key, Mnemonic, Public Key). Public Key sẽ được gửi lên server cùng thông tin đăng ký.
+1.  **Đăng ký**: Người dùng mới cung cấp thông tin (Họ tên, Email, Username, Mật khẩu). Hệ thống sẽ hướng dẫn tạo cặp khóa (Private Key, Mnemonic, Public Key). Public Key sẽ được gửi lên server cùng thông tin đăng ký.
 2.  **Đăng nhập**: Người dùng đăng nhập bằng Username và Mật khẩu.
 3.  **Dashboard**: Sau khi đăng nhập, người dùng được chuyển đến Dashboard, nơi hiển thị tổng quan và các lối tắt.
 4.  **Tạo/Tải lên tài liệu**: Người dùng có thể tạo tài liệu mới hoặc tải lên file có sẵn.
@@ -225,37 +225,6 @@ DocuTrust có thể được ứng dụng trong nhiều lĩnh vực và tình hu
     *   Đảm bảo tính minh bạch và truy xuất nguồn gốc của tài liệu trong chuỗi cung ứng.
 
 Nền tảng DocuTrust giúp giảm thiểu rủi ro giả mạo, tăng cường hiệu quả và đơn giản hóa quy trình làm việc với tài liệu số trong các trường hợp này.
-
-## 🧪 Testing (Ví dụ)
-
-```bash
-# Chạy unit tests cho backend (nếu có)
-cd backend
-npm test
-
-# Chạy unit tests cho frontend (nếu có)
-cd frontend
-npm test
-```
-
-## 🤝 Đóng góp
-
-Chúng tôi luôn chào đón mọi đóng góp! Hãy làm theo các bước sau:
-1. Fork dự án
-2. Tạo branch mới (`git checkout -b feature/AmazingFeature`)
-3. Commit thay đổi (`git commit -m 'Add some AmazingFeature'`)
-4. Push lên branch (`git push origin feature/AmazingFeature`)
-5. Tạo Pull Request
-
-## 📄 License
-
-Dự án được phân phối dưới giấy phép MIT. Xem `LICENSE` (nếu có) để biết thêm thông tin.
-
-## 📞 Liên hệ
-
-- Website: [docutrust.com](https://docutrust.com) (Ví dụ)
-- Email: support@docutrust.com (Ví dụ)
-- GitHub: [github.com/your-username/docutrust](https://github.com/your-username/docutrust) (Thay thế bằng link dự án thực tế)
 
 ---
 <div align="center">
